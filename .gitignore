@@ -1,0 +1,17 @@
+# MATLAB data files
+*.mat
+
+# MATLAB temp files
+*.asv
+
+# macOS
+.DS_Store
+
+# Dropbox conflicts
+*conflicted copy*
+
+# EPS files (keep PDFs only)
+*.eps
+
+# Text clippings
+*.textClipping
