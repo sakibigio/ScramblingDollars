@@ -183,6 +183,10 @@ for tt = 1:T
     end
 
     % [2] US Sigma - TED Target  
+    % For Cobb-Douglas, use mu-dependent initial guess to avoid cliff
+    if matching_type == 1
+        sigma_us_TED_guess = max(sigma_us_TED_guess, mu_us_yt + 0.15);
+    end
     sigma_us_res = @(sigma) Chi_p_psi(mu_us_yt, ploss_us, sigma, iota_us, lambda_us, eta, matching_type) * 1e4 * 12 - TED_us_target;
     [sigma_out, ~, exitflag, ~] = fsolve(@(sigma) sigma_us_res(sigma), sigma_us_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
     sigma_us_TED_t(tt) = sigma_out;
@@ -198,6 +202,10 @@ for tt = 1:T
     end
 
     % [4] EU Sigma - TED target
+    % For Cobb-Douglas, use mu-dependent initial guess to avoid cliff
+    if matching_type == 1
+        sigma_eu_TED_guess = max(sigma_eu_TED_guess, mu_eu_yt + 0.15);
+    end
     sigma_eu_res = @(sigma) Chi_p_psi(mu_eu_yt, ploss_eu, sigma, iota_eu, lambda_eu, eta, matching_type) * 1e4 * 12 - TED_eu_target;
     [sigma_out, ~, exitflag, ~] = fsolve(@(sigma) sigma_eu_res(sigma), sigma_eu_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
     sigma_eu_TED_t(tt) = sigma_out;
@@ -354,9 +362,16 @@ for cc = 1:numel(curlist)
     for tt = 1:T
         mu_eu_yt = exp(mu_eu(tt));
         eval(['target=min_test_eu+TED_s_' curlist{cc} '_t(tt)*abs_scale;']);        
+        
+        % For Cobb-Douglas, use mu-dependent initial guess
+        if matching_type == 1
+            sigma_c_guess = max(sigma_eu_t(tt), mu_eu_yt + 0.15);
+        else
+            sigma_c_guess = sigma_eu_t(tt);
+        end
     
         sigma_res = @(sigma) Chi_p_psi(mu_eu_yt, ploss_eu, sigma, iota_eu, lambda_eu, eta, matching_type) * 1e4 * 12 - target;
-        [sigma_out, ~, exitflag, ~] = fsolve(@(sigma) sigma_res(sigma), sigma_eu_t(tt), optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
+        [sigma_out, ~, exitflag, ~] = fsolve(@(sigma) sigma_res(sigma), sigma_c_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
         
         if exitflag > 0
             sigma_c_TED_t(tt) = sigma_out;

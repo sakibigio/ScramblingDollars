@@ -1,46 +1,45 @@
 %% Update Parameter Values
 % continuous_distribution
-freq        = 12     ;  % fequency (e.g. 25 biweekly) 
+freq        = 12     ;  % frequency (e.g. 12 monthly) 
 
 %----------- Shock Distribution --------------
-ploss_eu    = 0.25   ;  % frac loss Euro deposits
-ploss_us    = 0.25   ;  % frac loss $ deposits
-% sigma_eu    = 0.168   ;  % scale coefficient 0.168
-% sigma_us    = 0.168   ;  % scale coefficient 0.168
-% sigma_eu    = 0.1326   ;  % scale coefficient 0.168
-% sigma_us    = 0.245   ;  % scale coefficient 0.168
-% sigma_eu    = 0.133479   ;  % scale coefficient 0.168
-% sigma_us    = 0.24496   ;  % scale coefficient 0.168
-sigma_eu   = 0.015   ;  % scale coefficient 0.168
-sigma_us   = 0.02   ;  % scale coefficient 0.168
-
+ploss_eu    = 0.75   ;  % vol of Euro deposits
+ploss_us    = 0.75   ;  % vol of $ deposits
+sigma_eu    = 0.15   ;  % scale coefficient (initial guess)
+sigma_us    = 0.20   ;  % scale coefficient (initial guess)
 
 %------------- Trading Coefficients ------------
-lambda_us   = 3.5   ;  % efficiency Euro market
-lambda_eu   = 3.5   ;  % efficiency $ market
+% Lambda depends on matching technology
+% matching_type should be defined before calling this script
+if ~exist('matching_type', 'var')
+    matching_type = 0;  % default to Leontief
+    warning('matching_type not defined, defaulting to Leontief (0)');
+end
+
+if matching_type == 0
+    % Leontief matching
+    lambda_us = 3.5;
+    lambda_eu = 3.5;
+elseif matching_type == 1
+    % Cobb-Douglas matching
+    lambda_us = 2.1;
+    lambda_eu = 2.1;
+else
+    error('Unknown matching_type: %d. Use 0 (Leontief) or 1 (Cobb-Douglas)', matching_type);
+end
+
 varrho      = 0.0   ;
 gamma       = 1;
 eta         = 0.5;
 
 %-----------Policy------------------
-% im_eu  = 1.02^(1/freq);
-% im_us  = 1.02^(1/freq);
-% iw_eu  = 1.12^(1/freq);
-% iw_us  = 1.12^(1/freq);
-
-% im_eu = (1+mean_im_eu/100)^(1/freq);
-% im_us = (1+mean_im_us/100)^(1/freq);
-% iw_eu  = (1+mean_im_eu/100+0.1)^(1/freq);
-% iw_us  = (1+mean_im_us/100+0.1)^(1/freq);
-
 im_eu = imss_eu;
 im_us = imss_us;
-iw_eu = imss_eu+(iwss_eu-imss_eu)*1;
-iw_us = imss_us+(iwss_us-imss_us)*1;
+iw_eu = iwss_eu;
+iw_us = iwss_us;
 iota_eu = (iw_eu-im_eu)/pi_eu_ss;
 iota_us = (iw_us-im_us)/pi_us_ss;
-%M_eu    = 0.5;
-%M_us    = 0.5;
+
 M_eu    = M_eu_ss;
 M_us    = M_us_ss;
 
@@ -61,21 +60,13 @@ nu_b           = barB/bard_tot;
 % Steady State Values
 Rm_eu  = im_eu/pi_eu_ss;
 Rm_us  = im_us/pi_us_ss;
-% Rw_eu  = iw_eu;
-% Rw_us  = iw_us;
 
 % Transitions One Period Dynamics
 M_euus_ratio=M_eu/M_us;
 
-% Initial guess of loan and deposit demand size (will calibrate at line 63)
-Theta_b = 1;
-Theta_d_eu = 1^(1/35); 
-Theta_d_us = 1^(1/35);
-
-% Loan demand elasticity parameter (elasticity=1/epsilon_b)
-epsilon_b = -1/35;
-
-% Deposit demand elasticity parameter (elasticity=1/zeta)
-zeta_us = 1;
-zeta_eu = 1;
-
+% Print confirmation
+if matching_type == 0
+    fprintf('Parameters loaded: Leontief (λ = %.1f)\n', lambda_us);
+else
+    fprintf('Parameters loaded: Cobb-Douglas (λ = %.1f)\n', lambda_us);
+end
