@@ -3,10 +3,10 @@
 freq        = 12     ;  % frequency (e.g. 12 monthly) 
 
 %----------- Shock Distribution --------------
-ploss_eu    = 0.75   ;  % vol of Euro deposits
-ploss_us    = 0.75   ;  % vol of $ deposits
-sigma_eu    = 0.15   ;  % scale coefficient (initial guess)
-sigma_us    = 0.20   ;  % scale coefficient (initial guess)
+ploss_eu    = 0.25   ;  % vol of Euro deposits
+ploss_us    = 0.25   ;  % vol of $ deposits
+sigma_us    = 0.02;    % Was 0.20 (initial guess)
+sigma_eu    = 0.015;   % Was 0.15 (initial guess)
 
 %------------- Trading Coefficients ------------
 % Lambda depends on matching technology

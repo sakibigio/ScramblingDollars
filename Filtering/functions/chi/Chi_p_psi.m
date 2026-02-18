@@ -11,7 +11,7 @@ function [ted, chi_p_val, psi_p_val] = Chi_p_psi(mu, ploss, sigma, iota, lambda,
 %   matching_type : 0 = Leontief, 1 = Cobb-Douglas (default = 0)
 %
 % Outputs:
-%   ted       : TED spread = χ⁺(θ) * Ψ⁺(θ)
+%   ted       : TED spread = χ⁺(θ) / Ψ⁺(θ)
 %   chi_p_val : χ⁺(θ) value
 %   psi_p_val : Ψ⁺(θ) value
 %
@@ -35,7 +35,7 @@ th = Smin(mu, ploss, sigma) ./ Spl(mu, ploss, sigma);
 chi_p_val = Chi_p(th, iota, lambda, eta, matching_type);
 psi_p_val = Psi_p(th, lambda, matching_type);
 
-% TED spread
-ted = chi_p_val .* psi_p_val;
+% TED spread = chi_p / psi (NOT multiplication!)
+ted = chi_p_val ./ psi_p_val;
 
 end

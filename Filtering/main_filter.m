@@ -20,7 +20,7 @@ matching_type = 0;
 
 % Print/plot options
 printit = 0;
-plotdata = 0;
+plotdata = 1;  % Set to 1 to plot data
 printver = 0;
 
 % Plotting flags (set to 1 to enable)
