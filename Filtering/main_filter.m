@@ -460,7 +460,7 @@ end
 
 %% Currency plots
 if plot_baseline_curr == 1
-    RW_filter_plot_baseline_curr;
+    run('plotting/plot_currencies.m');
 end
 
 %% Steady state averages

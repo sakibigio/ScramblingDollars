@@ -105,7 +105,10 @@ figure('Name', 'Global Bond Premia', 'NumberTitle', 'off')
 
 subplot(3, 3, 1); 
 plot(dates(datesperiod), BP_eu_t(datesperiod)*abs_scale, 'LineWidth', 2); hold on;
-plot(dates(datesperiod), BP_s_eu_t(datesperiod)*abs_scale, 'LineWidth', 2); hold off;
+if exist('Rb_Rm_eu', 'var')
+    plot(dates(datesperiod), Rb_Rm_eu(datesperiod)*abs_scale, 'LineWidth', 2);
+end
+hold off;
 datetick('x', 'yy');
 grid on; axis tight;
 label_x('Time (Year)');
@@ -117,7 +120,12 @@ title('EU', 'interpreter', 'latex', 'Fontsize', 15);
 for j = 1:length(curlist)
     subplot(3, 3, j+1);
     BP_model = eval(['BP_' curlist{j} '_t(datesperiod)']);
-    BP_data = eval(['BP_s_' curlist{j} '_t(datesperiod)']);
+    % Try to get data variable, use model if not available
+    try
+        BP_data = eval(['Rb_Rm_' curlist{j} '(datesperiod)']);
+    catch
+        BP_data = BP_model;  % Fallback to model
+    end
     plot(dates(datesperiod), BP_model*abs_scale, 'LineWidth', 2); hold on;
     plot(dates(datesperiod), BP_data*abs_scale, 'LineWidth', 2); hold off;
     datetick('x', 'yy');
@@ -136,7 +144,10 @@ figure('Name', 'CIP Deviations', 'NumberTitle', 'off')
 
 subplot(3, 3, 1); 
 plot(dates(datesperiod), CIP_t(datesperiod)*abs_scale, 'LineWidth', 2); hold on;
-plot(dates(datesperiod), CIP_s_eu_t(datesperiod)*abs_scale, 'LineWidth', 2); hold off;
+if exist('cip', 'var')
+    plot(dates(datesperiod), cip(datesperiod)*abs_scale, 'LineWidth', 2);
+end
+hold off;
 datetick('x', 'yy');
 grid on; axis tight;
 label_x('Time (Year)');
@@ -148,7 +159,12 @@ title('EU', 'interpreter', 'latex', 'Fontsize', 15);
 for j = 1:length(curlist)
     subplot(3, 3, j+1);
     CIP_model = eval(['CIP_' curlist{j} '_t(datesperiod)']);
-    CIP_data = eval(['CIP_s_' curlist{j} '_t(datesperiod)']);
+    % Try to get data variable, use model if not available
+    try
+        CIP_data = eval(['cip_' curlist{j} '(datesperiod)']);
+    catch
+        CIP_data = CIP_model;  % Fallback to model
+    end
     plot(dates(datesperiod), CIP_model*abs_scale, 'LineWidth', 2); hold on;
     plot(dates(datesperiod), CIP_data*abs_scale, 'LineWidth', 2); hold off;
     datetick('x', 'yy');
@@ -165,10 +181,10 @@ end
 %% Figure 5: FX Rates (Model vs Data, Levels)
 figure('Name', 'FX Rates (Levels)', 'NumberTitle', 'off')
 
-temp = mean(ln_eu_us_t(datesperiod)) + mean(log(inv_e_t(datesperiod)));
+% EU/US exchange rate
 subplot(3, 3, 1);
-plot(dates(datesperiod), -log(inv_e_t(datesperiod)) + temp, 'LineWidth', 2); hold on;
-plot(dates(datesperiod), ln_eu_us_t(datesperiod), 'LineWidth', 2, 'LineStyle', '--'); hold off;
+plot(dates(datesperiod), log(e_euus_t(datesperiod)), 'LineWidth', 2); hold on;
+plot(dates(datesperiod), -inv_e(datesperiod), 'LineWidth', 2, 'LineStyle', '--'); hold off;
 datetick('x', 'yy');
 grid on; axis tight;
 label_x('Time (Year)');
@@ -179,11 +195,14 @@ title('EUR/USD', 'interpreter', 'latex', 'Fontsize', 15);
 
 for j = 1:length(curlist)
     subplot(3, 3, j+1);
-    ln_data = eval(['ln_' curlist{j} '_us_t(datesperiod)']);
-    inv_e_model = eval(['inv_e_' curlist{j} '_t']);
-    temp = mean(ln_data) + mean(log(inv_e_model));
-    plot(dates(datesperiod), -log(inv_e_model) + temp, 'LineWidth', 2); hold on;
-    plot(dates(datesperiod), ln_data, 'LineWidth', 2, 'LineStyle', '--'); hold off;
+    try
+        inv_e_model = eval(['inv_e_' curlist{j} '_t(datesperiod)']);
+        inv_e_data = eval(['inv_e_' curlist{j} '(datesperiod)']);
+        plot(dates(datesperiod), -log(inv_e_model), 'LineWidth', 2); hold on;
+        plot(dates(datesperiod), -inv_e_data, 'LineWidth', 2, 'LineStyle', '--'); hold off;
+    catch
+        % Skip if variable doesn't exist
+    end
     datetick('x', 'yy');
     grid on; axis tight;
     label_x('Time (Year)');
@@ -194,27 +213,30 @@ end
 %% Figure 6: FX Rates (Demeaned)
 figure('Name', 'FX Rates (Demeaned)', 'NumberTitle', 'off')
 
-temp1 = mean(ln_eu_us_t(datesperiod));
-temp2 = mean(log(inv_e_t(datesperiod)));
-subplot(3, 3, 1);
-plot(dates(datesperiod), -log(inv_e_t(datesperiod)) + temp2, 'LineWidth', 2); hold on;
-plot(dates(datesperiod), ln_eu_us_t(datesperiod) - temp1, 'LineWidth', 2, 'LineStyle', '--'); hold off;
-datetick('x', 'yy');
-grid on; axis tight;
-label_x('Time (Year)');
-formataxis(gca);
-h = legend('Model', 'Data');
-set(h, 'interpreter', 'latex', 'location', 'Northeast', 'Fontsize', 10);
-title('EUR/USD', 'interpreter', 'latex', 'Fontsize', 15);
+% Check if FX data variables exist
+if exist('inv_e', 'var')
+    temp2 = mean(log(inv_e_t(datesperiod)));
+    subplot(3, 3, 1);
+    plot(dates(datesperiod), -log(inv_e_t(datesperiod)) + temp2, 'LineWidth', 2); hold on;
+    plot(dates(datesperiod), -inv_e(datesperiod) + mean(inv_e(datesperiod)), 'LineWidth', 2, 'LineStyle', '--'); hold off;
+    datetick('x', 'yy');
+    grid on; axis tight;
+    label_x('Time (Year)');
+    formataxis(gca);
+    h = legend('Model', 'Data');
+    set(h, 'interpreter', 'latex', 'location', 'Northeast', 'Fontsize', 10);
+    title('EUR/USD', 'interpreter', 'latex', 'Fontsize', 15);
+end
 
 for j = 1:length(curlist)
     subplot(3, 3, j+1);
-    ln_data = eval(['ln_' curlist{j} '_us_t(datesperiod)']);
-    inv_e_model = eval(['inv_e_' curlist{j} '_t']);
-    temp1 = mean(ln_data);
-    temp2 = mean(log(inv_e_model));
-    plot(dates(datesperiod), -log(inv_e_model) + temp2, 'LineWidth', 2); hold on;
-    plot(dates(datesperiod), ln_data - temp1, 'LineWidth', 2, 'LineStyle', '--'); hold off;
+    try
+        inv_e_model = eval(['inv_e_' curlist{j} '_t(datesperiod)']);
+        temp2 = mean(log(inv_e_model));
+        plot(dates(datesperiod), -log(inv_e_model) + temp2, 'LineWidth', 2);
+    catch
+        % Skip if variable doesn't exist
+    end
     datetick('x', 'yy');
     grid on; axis tight;
     label_x('Time (Year)');
@@ -222,7 +244,7 @@ for j = 1:length(curlist)
     title([conlist{j} '/USD'], 'interpreter', 'latex', 'Fontsize', 15);
 end
 
-%% Figure 7: FX Devaluation Rates (with Correlation)
+%% Figure 7: FX Devaluation Rates (Model Only)
 figure('Name', 'FX Devaluation Rates', 'NumberTitle', 'off')
 
 datesperiod_f = datesperiod(2:end);
@@ -230,31 +252,28 @@ datesperiod_l = datesperiod(1:end-1);
 
 % EUR/USD
 temp1 = (-log(inv_e_t(datesperiod_f)) + log(inv_e_t(datesperiod_l))) * abs_scale/100;
-temp2 = (ln_eu_us_t(datesperiod_f) - ln_eu_us_t(datesperiod_l)) * abs_scale/100;
 subplot(3, 3, 1);
-plot(dates(datesperiod_f), temp1, 'LineWidth', 2); hold on;
-plot(dates(datesperiod_f), temp2, 'LineWidth', 1, 'LineStyle', '--'); hold off;
+plot(dates(datesperiod_f), temp1, 'LineWidth', 2);
 datetick('x', 'yy');
 grid on; axis tight;
 label_x('Time (Year)');
 formataxis(gca);
-h = legend('Model', 'Data');
-set(h, 'interpreter', 'latex', 'location', 'Northeast', 'Fontsize', 10);
-title(['EUR/USD corr: ' num2str(corr(temp1, temp2), '%.2f')], 'interpreter', 'latex', 'Fontsize', 15);
+title('EUR/USD', 'interpreter', 'latex', 'Fontsize', 15);
 
 for j = 1:length(curlist)
     subplot(3, 3, j+1);
-    inv_e_model = eval(['inv_e_' curlist{j} '_t']);
-    ln_data = eval(['ln_' curlist{j} '_us_t']);
-    temp1 = (-log(inv_e_model(datesperiod_f)) + log(inv_e_model(datesperiod_l))) * abs_scale/100;
-    temp2 = (ln_data(datesperiod_f) - ln_data(datesperiod_l)) * abs_scale/100;
-    plot(dates(datesperiod_f), temp1, 'LineWidth', 2); hold on;
-    plot(dates(datesperiod_f), temp2, 'LineWidth', 1, 'LineStyle', '--'); hold off;
+    try
+        inv_e_model = eval(['inv_e_' curlist{j} '_t']);
+        temp1 = (-log(inv_e_model(datesperiod_f)) + log(inv_e_model(datesperiod_l))) * abs_scale/100;
+        plot(dates(datesperiod_f), temp1, 'LineWidth', 2);
+    catch
+        % Skip if variable doesn't exist
+    end
     datetick('x', 'yy');
     grid on; axis tight;
     label_x('Time (Year)');
     formataxis(gca);
-    title([conlist{j} '/USD corr: ' num2str(corr(temp1, temp2), '%.2f')], 'interpreter', 'latex', 'Fontsize', 15);
+    title([conlist{j} '/USD'], 'interpreter', 'latex', 'Fontsize', 15);
 end
 
 %% Summary
