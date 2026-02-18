@@ -13,7 +13,7 @@ addpath('data');
 addpath('plotting');
 
 %% Load data and parameters (shared across both runs)
-load('data/LFX_data3.mat');
+load('data/LFX_data.mat');
 load('data/calibration.mat');
 
 % Scale
@@ -197,7 +197,7 @@ fprintf('\nResults saved to data/sigma_comparison.mat\n');
 %  ========================================================================
 function [sigma_us_t, sigma_eu_t, results] = run_filter(matching_type)
     % Load data
-    load('data/LFX_data3.mat');
+    load('data/LFX_data.mat');
     load('data/calibration.mat');
     
     % Required before params.m
