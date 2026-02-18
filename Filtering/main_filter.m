@@ -25,13 +25,13 @@ printver = 0;
 
 % Plotting flags (set to 1 to enable)
 do_plot_baseline = 1;      % Main filter results
-do_plot_diagnostics = 1;   % Diagnostic plots
-do_counterfactual = 1;     % Counterfactual analysis (not implemented)
-do_sensitivity = 1;        % Sensitivity analysis (not implemented)
+do_plot_diagnostics = 0;   % Diagnostic plots
+do_counterfactual = 0;     % Counterfactual analysis (not implemented)
+do_sensitivity = 0;        % Sensitivity analysis (not implemented)
 plot_baseline_curr = 1;  % Baseline plots for other currencies
 
 % Run markov_estimation.jl automatically after filtering
-run_julia = 1;  % Set to 1 to run Julia automatically
+run_julia = 0;  % Set to 1 to run Julia automatically
 
 %% Load data
 load('data/LFX_data.mat');
@@ -346,7 +346,7 @@ if run_julia == 1
     end
     
     if ~isempty(julia_path)
-        julia_script = 'estimation/markov_estimation.jl';
+        julia_script = 'markov_estimation.jl';
         if exist(julia_script, 'file')
             cmd = sprintf('"%s" "%s"', julia_path, julia_script);
             [status, result] = system(cmd);
@@ -442,9 +442,12 @@ for cc = 1:numel(curlist)
     riskprm_c_t = (Rb_us_t) ./ (Rb_c_t) - 1;
     CIP_c_t = UIP_c_t + Rm_c .* riskprm_c_t;
     
-    p_c_t = (M_eu ./ (Rd_c_t.^(1/zeta_eu))) ./ mu_eu_t;
-    inv_e_c_t = p_us_t ./ p_c_t;
-    f_c_t = (1 + riskprm_c_t) ./ exp(inv_e_c_t);
+    % Price and FX calculations
+    % Use Theta_d_eu for deposit demand consistency
+    d_c_t = Theta_d_eu_t .* (Rd_c_t.^(1/zeta_eu));
+    p_c_t = M_eu_t ./ (d_c_t .* mu_eu_t);
+    inv_e_c_t = -log(p_us_t ./ p_c_t);  % Negative log to match data convention
+    f_c_t = (1 + riskprm_c_t) .* exp(inv_e_c_t);
 
     eval(['sigma_' curlist{cc} '_TED_flag=sigma_c_TED_flag;']);
     eval(['sigma_' curlist{cc} '_t=sigma_c_TED_t;']);
