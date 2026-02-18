@@ -16,18 +16,28 @@ addpath('plotting');
 
 %% Model Settings
 % Matching function: 0 = Leontief, 1 = Cobb-Douglas
-matching_type = 1;
+matching_type = 0;
 
 % Print/plot options
 printit = 0;
 plotdata = 0;
 printver = 0;
 
+% Plotting flags (set to 1 to enable)
+do_plot_baseline = 1;      % Main filter results
+do_plot_diagnostics = 1;   % Diagnostic plots
+do_counterfactual = 1;     % Counterfactual analysis (not implemented)
+do_sensitivity = 1;        % Sensitivity analysis (not implemented)
+plot_baseline_curr = 1;  % Baseline plots for other currencies
+
+% Run markov_estimation.jl automatically after filtering
+run_julia = 1;  % Set to 1 to run Julia automatically
+
 %% Load data
-load('data/LFX_data3.mat');
+load('data/LFX_data.mat');
 
 if plotdata == 1
-    LFX_plotdata;
+    run('plotting/plot_data.m');
 end
 
 %% Parameters
@@ -101,7 +111,7 @@ plot(sigma_vec, Psi_test);
 title(sprintf('Psi Test (matching\\_type = %d)', matching_type));
 
 %% Initialize data
-load('data/LFX_data3.mat');
+load('data/LFX_data.mat');
 endopath = [mu_us mu_eu Rb_Rm cip];
 exopath = [im_eu im_us M_us M_eu];
 
@@ -313,27 +323,59 @@ writetable(RW_shock, 'RW_shock.csv');
 fprintf('Filter complete. Output saved to RW_shock.csv\n');
 fprintf('Matching type: %d (%s)\n', matching_type, matching_name);
 
-%% Plotting options
-close all;
-
-plot_baseline = 0;
-if plot_baseline == 1
-    RW_filter_plot_baseline;
+%% Run Markov Estimation in Julia (optional)
+if run_julia == 1
+    fprintf('Running Markov estimation in Julia...\n');
+    
+    % Try to find Julia
+    [status, julia_path] = system('which julia');
+    if status ~= 0
+        % Try common locations
+        if exist('/usr/local/bin/julia', 'file')
+            julia_path = '/usr/local/bin/julia';
+        elseif exist('/opt/homebrew/bin/julia', 'file')  % M1 Mac
+            julia_path = '/opt/homebrew/bin/julia';
+        elseif exist('/Applications/Julia-1.10.app/Contents/Resources/julia/bin/julia', 'file')
+            julia_path = '/Applications/Julia-1.10.app/Contents/Resources/julia/bin/julia';
+        else
+            warning('Julia not found. Run markov_estimation.jl manually.');
+            julia_path = '';
+        end
+    else
+        julia_path = strtrim(julia_path);
+    end
+    
+    if ~isempty(julia_path)
+        julia_script = 'estimation/markov_estimation.jl';
+        if exist(julia_script, 'file')
+            cmd = sprintf('"%s" "%s"', julia_path, julia_script);
+            [status, result] = system(cmd);
+            if status == 0
+                fprintf('Julia estimation complete.\n');
+            else
+                warning('Julia estimation failed: %s', result);
+            end
+        else
+            warning('Julia script not found: %s', julia_script);
+        end
+    end
 end
 
-run_counterfactual = 0;
-if run_counterfactual == 1
-    LFX_rw_filter_counterfactual;
+%% Plotting
+if do_plot_baseline == 1
+    run('plotting/plot_baseline.m');
 end
 
-run_sensitivity = 0;
-if run_sensitivity == 1
-    LFX_sensitivity;
+if do_plot_diagnostics == 1
+    run('plotting/plot_diagnostics.m');
 end
 
-plot_diagnostics = 0;
-if plot_diagnostics == 1
-    LFX_rw_shock_diagnostics;
+if do_counterfactual == 1
+    run('plotting/plot_counterfactual.m');
+end
+
+if do_sensitivity == 1
+    run('plotting/plot_sensitivity.m');
 end
 
 %% Other currencies
@@ -417,7 +459,6 @@ for cc = 1:numel(curlist)
 end
 
 %% Currency plots
-plot_baseline_curr = 0;
 if plot_baseline_curr == 1
     RW_filter_plot_baseline_curr;
 end
