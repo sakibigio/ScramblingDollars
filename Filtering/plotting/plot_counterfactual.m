@@ -72,14 +72,21 @@ if ~exist(us_file, 'file') || ~exist(eu_file, 'file')
     return;
 end
 
-% US counterfactual
-counter_tab = readtable(us_file);
-sigma_us_r1sim = table2array(counter_tab);
+% US counterfactual - use readmatrix for better compatibility
+try
+    sigma_us_r1sim = readmatrix(us_file, 'NumHeaderLines', 1);
+catch
+    % Fallback for older MATLAB versions
+    sigma_us_r1sim = csvread(us_file, 1, 0);
+end
 sigma_us_r1sim = [sigma_us_t(1); sigma_us_r1sim];  % Prepend initial value
 
 % EU counterfactual
-counter_tab = readtable(eu_file);
-sigma_eu_r1sim = table2array(counter_tab);
+try
+    sigma_eu_r1sim = readmatrix(eu_file, 'NumHeaderLines', 1);
+catch
+    sigma_eu_r1sim = csvread(eu_file, 1, 0);
+end
 sigma_eu_r1sim = [sigma_eu_t(1); sigma_eu_r1sim];
 
 %% Plot: Counterfactual vs Actual Shocks

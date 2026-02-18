@@ -45,14 +45,19 @@ if ~exist('formataxis', 'var')
 end
 
 %% Load Markov Regime Probabilities
-if ~exist('MS_sigma_us_prob.csv', 'file')
-    warning('MS_sigma_us_prob.csv not found. Run markov_estimation.jl first.');
+prob_file = 'data/MS_sigma_us_prob.csv';
+if ~exist(prob_file, 'file')
+    warning('MS_sigma_us_prob.csv not found in data/. Run markov_estimation.jl first.');
     fprintf('Skipping regime plots.\n');
     return;
 end
 
-stateprob_tab = readtable('MS_sigma_us_prob.csv');
-sigma_us_stateprob = table2array(stateprob_tab);
+% Read probabilities - use readmatrix for compatibility
+try
+    sigma_us_stateprob = readmatrix(prob_file, 'NumHeaderLines', 1);
+catch
+    sigma_us_stateprob = csvread(prob_file, 1, 0);
+end
 sigma_us_stateprob = [sigma_us_stateprob(:,1); 0];  % Append zero for indexing
 
 % Classify regimes
