@@ -16,7 +16,7 @@ addpath('plotting');
 
 %% Model Settings
 % Matching function: 0 = Leontief, 1 = Cobb-Douglas
-matching_type = 0;
+matching_type = 1;  % Set this to 0 or 1 to choose matching function
 
 % Print/plot options
 printit = 0;
@@ -172,6 +172,13 @@ else
 end
 fprintf('Starting filter with matching_type = %d (%s)\n', matching_type, matching_name);
 
+% For Cobb-Douglas: compute Walrasian threshold theta_plus
+if matching_type == 1
+    theta_plus_us = ((exp(lambda_us) - 1) / (exp(lambda_us) + 1))^2;
+    theta_plus_eu = ((exp(lambda_eu) - 1) / (exp(lambda_eu) + 1))^2;
+    fprintf('Cobb-Douglas thresholds: θ⁺_us = %.6f, θ⁺_eu = %.6f\n', theta_plus_us, theta_plus_eu);
+end
+
 for tt = 1:T
     % Setup targets
     BP_us_taget = min_test_us + (Rb_Rm(tt) - min(Rb_Rm)) * abs_scale;
@@ -193,12 +200,26 @@ for tt = 1:T
     end
 
     % [2] US Sigma - TED Target  
-    % For Cobb-Douglas, use mu-dependent initial guess to avoid cliff
-    if matching_type == 1
-        sigma_us_TED_guess = max(sigma_us_TED_guess, mu_us_yt + 0.15);
-    end
     sigma_us_res = @(sigma) Chi_p_psi(mu_us_yt, ploss_us, sigma, iota_us, lambda_us, eta, matching_type) * 1e4 * 12 - TED_us_target;
-    [sigma_out, ~, exitflag, ~] = fsolve(@(sigma) sigma_us_res(sigma), sigma_us_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
+    
+    if matching_type == 1
+        % Cobb-Douglas: compute sigma_min where theta = theta_plus
+        sigma_min_us = find_sigma_min(mu_us_yt, ploss_us, theta_plus_us);
+        sigma_us_TED_guess = sigma_min_us + 0.5;  % Start above the cliff
+        
+        % Try fsolve first
+        [sigma_out, ~, exitflag, ~] = fsolve(sigma_us_res, sigma_us_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
+        
+        % If fsolve fails, use bounded solver as backup
+        if exitflag <= 0 || sigma_out < sigma_min_us
+            sigma_res_sq = @(sig) (Chi_p_psi(mu_us_yt, ploss_us, sig, iota_us, lambda_us, eta, 1) * 1e4 * 12 - TED_us_target)^2;
+            sigma_out = fminbnd(sigma_res_sq, sigma_min_us + 0.01, 15);
+            exitflag = 10;  % Flag 10 = solved via fminbnd
+        end
+    else
+        % Leontief: use standard fsolve
+        [sigma_out, ~, exitflag, ~] = fsolve(sigma_us_res, sigma_us_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
+    end
     sigma_us_TED_t(tt) = sigma_out;
     sigma_us_TED_guess = sigma_out;
     sigma_us_TED_flag(tt) = exitflag;
@@ -212,13 +233,28 @@ for tt = 1:T
     end
 
     % [4] EU Sigma - TED target
-    % For Cobb-Douglas, use mu-dependent initial guess to avoid cliff
-    if matching_type == 1
-        sigma_eu_TED_guess = max(sigma_eu_TED_guess, mu_eu_yt + 0.15);
-    end
     sigma_eu_res = @(sigma) Chi_p_psi(mu_eu_yt, ploss_eu, sigma, iota_eu, lambda_eu, eta, matching_type) * 1e4 * 12 - TED_eu_target;
-    [sigma_out, ~, exitflag, ~] = fsolve(@(sigma) sigma_eu_res(sigma), sigma_eu_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
+    
+    if matching_type == 1
+        % Cobb-Douglas: compute sigma_min where theta = theta_plus
+        sigma_min_eu = find_sigma_min(mu_eu_yt, ploss_eu, theta_plus_eu);
+        sigma_eu_TED_guess = sigma_min_eu + 0.5;  % Start above the cliff
+        
+        % Try fsolve first
+        [sigma_out, ~, exitflag, ~] = fsolve(sigma_eu_res, sigma_eu_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
+        
+        % If fsolve fails, use bounded solver as backup
+        if exitflag <= 0 || sigma_out < sigma_min_eu
+            sigma_res_sq = @(sig) (Chi_p_psi(mu_eu_yt, ploss_eu, sig, iota_eu, lambda_eu, eta, 1) * 1e4 * 12 - TED_eu_target)^2;
+            sigma_out = fminbnd(sigma_res_sq, sigma_min_eu + 0.01, 15);
+            exitflag = 10;  % Flag 10 = solved via fminbnd
+        end
+    else
+        % Leontief: use standard fsolve
+        [sigma_out, ~, exitflag, ~] = fsolve(sigma_eu_res, sigma_eu_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
+    end
     sigma_eu_TED_t(tt) = sigma_out;
+    sigma_eu_TED_guess = sigma_out;
     sigma_eu_TED_flag(tt) = exitflag; 
 
     % Update based on target choice
