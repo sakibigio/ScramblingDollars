@@ -15,9 +15,9 @@ function [echi_m, theta_val, psi_val, Smin_val, DW_val, FF_val, Q_val] = Chi_sys
 %   theta_val : Market tightness θ = S⁻/S⁺
 %   psi_val   : Matching probability Ψ⁺
 %   Smin_val  : Deficit side measure S⁻
-%   DW_val    : Discount window usage (1 - Ψ⁻) * F(-μ)
-%   FF_val    : Fed Funds volume Ψ⁺ * (1-F(-μ))
-%   Q_val     : Total interbank quantity
+%   DW_val    : Discount window usage = S⁻ - Ψ⁺ * S⁺
+%   FF_val    : Fed Funds volume = Ψ⁺ * S⁺
+%   Q_val     : Interbank quantity ratio
 
 if nargin < 6 || isempty(eta)
     eta = 0.5;
@@ -45,7 +45,6 @@ theta_val = Smin_val ./ Spl_val;
 chi_p = Chi_p(theta_val, iota, lambda, eta, matching_type);
 chi_m = Chi_m(theta_val, iota, lambda, eta, matching_type);
 psi_p = Psi_p(theta_val, lambda, matching_type);
-psi_m = Psi_m(theta_val, lambda, matching_type);
 
 % Expected marginal liquidity
 echi_m = (1 - F_val) .* chi_p + F_val .* chi_m;
@@ -53,14 +52,14 @@ echi_m = (1 - F_val) .* chi_p + F_val .* chi_m;
 % Matching probability (surplus side)
 psi_val = psi_p;
 
-% Discount window usage: banks in deficit who don't find a match
-DW_val = (1 - psi_m) .* F_val;
-
-% Fed Funds volume: matched trades
-% Volume = Ψ⁺ * S⁺ = Ψ⁻ * S⁻ (by matching identity)
+% Fed Funds volume: matched trades = Ψ⁺ * S⁺
 FF_val = psi_p .* Spl_val;
 
-% Total interbank quantity
-Q_val = FF_val;
+% Discount window usage: unmatched deficit = S⁻ - Ψ⁺ * S⁺
+% (Old formula: DW = Smin - psi * Spl)
+DW_val = Smin_val - psi_p .* Spl_val;
+
+% Interbank quantity ratio
+Q_val = iota * eta - (chi_p - chi_m);
 
 end
