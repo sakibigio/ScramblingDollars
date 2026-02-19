@@ -20,7 +20,7 @@ matching_type = 0;
 
 % Print/plot options
 printit = 0;
-plotdata = 1;  % Set to 1 to plot data
+plotdata = 0;
 printver = 0;
 
 % Plotting flags (set to 1 to enable)
@@ -442,12 +442,10 @@ for cc = 1:numel(curlist)
     riskprm_c_t = (Rb_us_t) ./ (Rb_c_t) - 1;
     CIP_c_t = UIP_c_t + Rm_c .* riskprm_c_t;
     
-    % Price and FX calculations
-    % Use Theta_d_eu for deposit demand consistency
-    d_c_t = Theta_d_eu_t .* (Rd_c_t.^(1/zeta_eu));
-    p_c_t = M_eu_t ./ (d_c_t .* mu_eu_t);
-    inv_e_c_t = -log(p_us_t ./ p_c_t);  % Negative log to match data convention
-    f_c_t = (1 + riskprm_c_t) .* exp(inv_e_c_t);
+    % Price and FX calculations (match old code formula)
+    p_c_t = (M_eu ./ (Rd_c_t.^(1/zeta_eu))) ./ mu_eu_t;
+    inv_e_c_t = p_us_t ./ p_c_t;  % Level ratio (same as old code)
+    f_c_t = (1 + riskprm_c_t) ./ inv_e_c_t;
 
     eval(['sigma_' curlist{cc} '_TED_flag=sigma_c_TED_flag;']);
     eval(['sigma_' curlist{cc} '_t=sigma_c_TED_t;']);
