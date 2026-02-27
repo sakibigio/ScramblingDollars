@@ -4,8 +4,19 @@
 %
 % Pipeline: main_filter.m → markov_estimation.jl → plot_regimes.m
 
+%% Setup - Preserve matching_type through clear
+%if ~exist('matching_type', 'var')
+    matching_type = 1;  % 0 = Leontief, 1 = Cobb-Douglas (default)
+% end
+save('temp_matching_type.mat', 'matching_type');
+
 %% Setup
 clear; close all;
+
+%% Load matching_type
+load('temp_matching_type.mat');
+delete('temp_matching_type.mat');  % Clean up temp file
+% matching_type = saved_matching_type;  % Restore after clear
 
 % Add paths
 addpath('functions');
@@ -14,24 +25,20 @@ addpath('utils');
 addpath('data');
 addpath('plotting');
 
-%% Model Settings
-% Matching function: 0 = Leontief, 1 = Cobb-Douglas
-matching_type = 1;  % Set this to 0 or 1 to choose matching function
-
 % Print/plot options
 printit = 0;
 plotdata = 0;
 printver = 0;
 
 % Plotting flags (set to 1 to enable)
-do_plot_baseline = 1;      % Main filter results
+do_plot_baseline    = 1;      % Main filter results
 do_plot_diagnostics = 0;   % Diagnostic plots
-do_counterfactual = 0;     % Counterfactual analysis (not implemented)
-do_sensitivity = 0;        % Sensitivity analysis (not implemented)
-plot_baseline_curr = 1;  % Baseline plots for other currencies
+do_counterfactual   = 1;     % Counterfactual analysis (not implemented)
+do_sensitivity      = 0;        % Sensitivity analysis (not implemented)
+plot_baseline_curr  = 0;  % Baseline plots for other currencies
 
 % Run markov_estimation.jl automatically after filtering
-run_julia = 0;  % Set to 1 to run Julia automatically
+run_julia = 1;  % Set to 1 to run Julia automatically
 
 %% Load data
 load('data/LFX_data.mat');
@@ -84,9 +91,20 @@ sigma_vec = (0.01:0.01:10);
 N_s = length(sigma_vec);
 min_ted = min(TED_s_us_t * abs_scale);
 max_ted = max(TED_s_us_t * abs_scale);
-min_test_us = Chi_p_psi(min(exp(mu_us)), ploss_us, min(sigma_vec), iota_us, lambda_us, eta, matching_type) * abs_scale + 0.00012 * abs_scale;
-min_test_eu = Chi_p_psi(min(exp(mu_eu)), ploss_eu, min(sigma_vec), iota_eu, lambda_eu, eta, matching_type) * abs_scale + 0.00012 * abs_scale;
-max_test = Chi_p_psi(min(exp(mu_us)), ploss_us, max(sigma_vec), iota_us, lambda_us, eta, matching_type) * abs_scale;
+if matching_type == 0
+    min_test_us = Chi_p_psi(min(exp(mu_us)), ploss_us, min(sigma_vec), iota_us, lambda_us, eta, matching_type) * abs_scale + 0.00012 * abs_scale;
+    min_test_eu = Chi_p_psi(min(exp(mu_eu)), ploss_eu, min(sigma_vec), iota_eu, lambda_eu, eta, matching_type) * abs_scale + 0.00012 * abs_scale;
+    max_test = Chi_p_psi(min(exp(mu_us)), ploss_us, max(sigma_vec), iota_us, lambda_us, eta, matching_type) * abs_scale;
+    fprintf('Leontief matching: TED range in data is [%.2f, %.2f] bps\n', min_ted, max_ted);
+    fprintf('Leontief matching: TED range in model is [%.2f, %.2f] bps\n', min_test_us, max_test);
+else
+    min_test_us = 0 ;
+    min_test_eu = 0 ;
+    max_test = Chi_p_psi(min(exp(mu_us)), ploss_us, max(sigma_vec), iota_us, lambda_us, eta, matching_type) * abs_scale;
+    fprintf('Cobb-Douglas matching: TED range in data is [%.2f, %.2f] bps\n', min_ted, max_ted);
+    fprintf('Cobb-Douglas matching: TED range in model is [%.2f, %.2f] bps\n', min_test_us, max_test);
+end
+
 
 % Test lower bound
 Ted_test = ones(N_s, 1);
@@ -181,10 +199,17 @@ end
 
 for tt = 1:T
     % Setup targets
-    BP_us_taget = min_test_us + (Rb_Rm(tt) - min(Rb_Rm)) * abs_scale;
-    BP_eu_taget = min_test_eu + (Rb_Rm_eu(tt) - min(Rb_Rm_eu)) * abs_scale;
-    TED_us_target = min_test_us + (TED_s_us_t(tt) - min(TED_s_us_t)) * abs_scale; 
-    TED_eu_target = min_test_eu + (TED_s_eu_t(tt) - min(TED_s_eu_t)) * abs_scale;
+    if matching_type == 0
+        BP_us_taget = min_test_us + (Rb_Rm(tt) - min(Rb_Rm)) * abs_scale;
+        BP_eu_taget = min_test_eu + (Rb_Rm_eu(tt) - min(Rb_Rm_eu)) * abs_scale;
+        TED_us_target = min_test_us + (TED_s_us_t(tt) - min(TED_s_us_t)) * abs_scale; 
+        TED_eu_target = min_test_eu + (TED_s_eu_t(tt) - min(TED_s_eu_t)) * abs_scale;
+    else
+        BP_us_taget   = Rb_Rm(tt)       * abs_scale;
+        BP_eu_taget   = Rb_Rm_eu(tt)    * abs_scale;
+        TED_us_target = TED_s_us_t(tt)  * abs_scale; 
+        TED_eu_target = TED_s_eu_t(tt)  * abs_scale;
+    end
 
     % Data points
     mu_us_yt = exp(mu_us(tt));
@@ -205,15 +230,19 @@ for tt = 1:T
     if matching_type == 1
         % Cobb-Douglas: compute sigma_min where theta = theta_plus
         sigma_min_us = find_sigma_min(mu_us_yt, ploss_us, theta_plus_us);
-        sigma_us_TED_guess = sigma_min_us + 0.5;  % Start above the cliff
         
+        if tt > 1 && sigma_us_t(tt-1) > 0
+                sigma_us_TED_guess = sigma_us_t(tt-1);
+            else
+                sigma_us_TED_guess = sigma_min_us + max(0.0001, 2*sigma_min_us);  % Start above the cliff
+        end
         % Try fsolve first
         [sigma_out, ~, exitflag, ~] = fsolve(sigma_us_res, sigma_us_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
         
         % If fsolve fails, use bounded solver as backup
         if exitflag <= 0 || sigma_out < sigma_min_us
             sigma_res_sq = @(sig) (Chi_p_psi(mu_us_yt, ploss_us, sig, iota_us, lambda_us, eta, 1) * 1e4 * 12 - TED_us_target)^2;
-            sigma_out = fminbnd(sigma_res_sq, sigma_min_us + 0.01, 15);
+            sigma_out = fminbnd(sigma_res_sq, sigma_min_us + 1e-6, 15);
             exitflag = 10;  % Flag 10 = solved via fminbnd
         end
     else
@@ -238,7 +267,11 @@ for tt = 1:T
     if matching_type == 1
         % Cobb-Douglas: compute sigma_min where theta = theta_plus
         sigma_min_eu = find_sigma_min(mu_eu_yt, ploss_eu, theta_plus_eu);
-        sigma_eu_TED_guess = sigma_min_eu + 0.5;  % Start above the cliff
+        if tt > 1 && sigma_eu_t(tt-1) > 0
+                sigma_eu_TED_guess = sigma_eu_t(tt-1);
+            else
+                sigma_eu_TED_guess = sigma_min_eu + max(0.0001, 2*sigma_min_eu);  % Start above the cliff
+        end
         
         % Try fsolve first
         [sigma_out, ~, exitflag, ~] = fsolve(sigma_eu_res, sigma_eu_TED_guess, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, 'MaxFunEval', 1e9, 'MaxIter', 1e6));
@@ -246,7 +279,7 @@ for tt = 1:T
         % If fsolve fails, use bounded solver as backup
         if exitflag <= 0 || sigma_out < sigma_min_eu
             sigma_res_sq = @(sig) (Chi_p_psi(mu_eu_yt, ploss_eu, sig, iota_eu, lambda_eu, eta, 1) * 1e4 * 12 - TED_eu_target)^2;
-            sigma_out = fminbnd(sigma_res_sq, sigma_min_eu + 0.01, 15);
+            sigma_out = fminbnd(sigma_res_sq, sigma_min_eu + 1e-6, 15);
             exitflag = 10;  % Flag 10 = solved via fminbnd
         end
     else
@@ -509,8 +542,58 @@ riskprm_av = mean(riskprm_t);
 Theta_d_us_av = mean(Theta_d_us_t);
 Theta_d_eu_av = mean(Theta_d_us_t);
 
-fprintf('\n=== Summary Statistics ===\n');
-fprintf('Mean sigma_us: %.4f\n', sigma_us_av);
-fprintf('Mean sigma_eu: %.4f\n', sigma_eu_av);
-fprintf('Mean risk premium: %.4f (%.2f bps)\n', riskprm_av, riskprm_av * 1e4);
-fprintf('\nNext step: Run markov_estimation.jl, then plot_regimes.m\n');
+%% ========================================================================
+%  DIAGNOSTICS
+%  ========================================================================
+fprintf('\n=== Filter Diagnostics ===\n');
+fprintf('lambda=%.2f, eta=%.2f, ploss=%.2f, iota_us=%.6f\n', lambda_us, eta, ploss_us, iota_us);
+fprintf('sigma_us: mean=%.4f, min=%.4f, max=%.4f, p05=%.4f, p95=%.4f\n', mean(sigma_us_t), min(sigma_us_t), max(sigma_us_t), prctile(sigma_us_t,5), prctile(sigma_us_t,95));
+fprintf('sigma_eu: mean=%.4f, min=%.4f, max=%.4f\n', mean(sigma_eu_t), min(sigma_eu_t), max(sigma_eu_t));
+fprintf('Post/Pre(48): %.2f\n', mean(sigma_us_t(end-47:end))/mean(sigma_us_t(1:48)));
+fprintf('Implied Std(omega): mean=%.1f%%, p95=%.1f%%\n', mean(sigma_us_t)*sqrt(8)*100, prctile(sigma_us_t,95)*sqrt(8)*100);
+
+% Solver
+n_fsolve = sum(sigma_us_TED_flag > 0 & sigma_us_TED_flag ~= 10);
+n_fminbnd = sum(sigma_us_TED_flag == 10);
+n_fail = sum(sigma_us_TED_flag <= 0);
+fprintf('Solver: fsolve=%d (%.1f%%), fminbnd=%d (%.1f%%), fail=%d\n', n_fsolve, n_fsolve/T*100, n_fminbnd, n_fminbnd/T*100, n_fail);
+
+% Residuals
+model_ted = zeros(T,1); data_ted = zeros(T,1);
+for tt2 = 1:T
+    model_ted(tt2) = Chi_p_psi(exp(mu_us(tt2)), ploss_us, sigma_us_t(tt2), iota_us, lambda_us, eta, matching_type) * abs_scale;
+    if matching_type == 0
+        data_ted(tt2) = min_test_us + (TED_s_us_t(tt2) - min(TED_s_us_t)) * abs_scale;
+    else
+        data_ted(tt2) = TED_s_us_t(tt2) * abs_scale;
+    end
+end
+resid = abs(model_ted - data_ted);
+fprintf('Residuals(bps): max=%.2f, mean=%.2f, median=%.2f, pct<0.1=%.1f%%\n', max(resid), mean(resid), median(resid), sum(resid<0.1)/T*100);
+
+% Volume ratios
+fprintf('\n--- Volume Ratios (Model vs Data) ---\n');
+fprintf('FF:  model=%.2f%%,  data=10.9%%\n', mean(FF_us_t)*100);
+fprintf('DW:  model=%.2f%%,  data=0.26%%\n', mean(DW_us_t)*100);
+fprintf('DW+FF=%.2f%%, DW/FF=%.2f%%  (data: 11.9%%)\n', mean(DW_us_t+FF_us_t)*100, mean(DW_us_t./FF_us_t)*100);
+
+% Correlations and std devs
+fprintf('\n--- Model vs Data ---\n');
+dBP_m = diff(BP_us_t(datesperiod)); dBP_d = diff(Rb_Rm(datesperiod));
+dTED_m = diff(TED_us_t(datesperiod)); dTED_d = diff(TED_s_us_t(datesperiod));
+dCIP_m = diff(CIP_t(datesperiod)); dCIP_d = diff(cip(datesperiod));
+fprintf('         corr(level)  corr(diff)  std_model  std_data  dstd_model  dstd_data\n');
+fprintf('BP:      %.3f         %.3f        %.1f       %.1f      %.1f        %.1f\n', ...
+    corr(BP_us_t(datesperiod), Rb_Rm(datesperiod)), corr(dBP_m, dBP_d), ...
+    std(BP_us_t(datesperiod))*abs_scale, std(Rb_Rm(datesperiod))*abs_scale, ...
+    std(dBP_m)*abs_scale, std(dBP_d)*abs_scale);
+fprintf('TED:     %.3f         %.3f        %.1f       %.1f      %.1f        %.1f\n', ...
+    corr(TED_us_t(datesperiod), TED_s_us_t(datesperiod)), corr(dTED_m, dTED_d), ...
+    std(TED_us_t(datesperiod))*abs_scale, std(TED_s_us_t(datesperiod))*abs_scale, ...
+    std(dTED_m)*abs_scale, std(dTED_d)*abs_scale);
+fprintf('CIP:     %.3f         %.3f        %.1f       %.1f      %.1f        %.1f\n', ...
+    corr(CIP_t(datesperiod), cip(datesperiod)), corr(dCIP_m, dCIP_d), ...
+    std(CIP_t(datesperiod))*abs_scale, std(cip(datesperiod))*abs_scale, ...
+    std(dCIP_m)*abs_scale, std(dCIP_d)*abs_scale);
+
+clear n_fsolve n_fminbnd n_fail model_ted data_ted resid tt2 dBP_m dBP_d dTED_m dTED_d dCIP_m dCIP_d;

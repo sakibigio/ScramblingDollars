@@ -61,8 +61,9 @@ elseif matching_type == 1
         
         % Terminal tightness
         exp_T = alpha .* exp(-lambda .* T_max);
-        barth(idx_low) = ((exp_T - 1) ./ (exp_T + 1)).^2;
-        barth(idx_low & T_star < 1) = 0;  % Early stop
+        barth_sub = ((exp_T - 1) ./ (exp_T + 1)).^2;
+        barth_sub(T_star < 1) = 0;  % Early stop: matching exhausts before t=1
+        barth(idx_low) = barth_sub;
         
         % Tightness at time t
         t_eff = min(t, T_max);
@@ -79,8 +80,9 @@ elseif matching_type == 1
         T_max = min(T_star, 1);
         
         exp_T = alpha .* exp(-lambda .* T_max);
-        barth(idx_high) = ((exp_T - 1) ./ (exp_T + 1)).^2;
-        barth(idx_high & T_star < 1) = Inf;  % Early stop
+        barth_sub = ((exp_T - 1) ./ (exp_T + 1)).^2;
+        barth_sub(T_star < 1) = Inf;  % Early stop: matching exhausts before t=1
+        barth(idx_high) = barth_sub;
         
         t_eff = min(t, T_max);
         exp_t = alpha .* exp(-lambda .* t_eff);
