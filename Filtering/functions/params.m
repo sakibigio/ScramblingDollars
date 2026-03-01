@@ -3,8 +3,8 @@
 freq        = 12     ;  % frequency (e.g. 12 monthly) 
 
 %----------- Shock Distribution --------------
-ploss_eu    = 0.5   ;  % probability of an outflow of euro deposits
-ploss_us    = 0.5   ;  % probability of an outflow of dollar deposits
+ploss_eu    = 0.75   ;  % probability of an outflow of euro deposits
+ploss_us    = 0.75   ;  % probability of an outflow of dollar deposits
 sigma_us    = 0.02;    % Was 0.20 (initial guess)
 sigma_eu    = 0.015;   % Was 0.15 (initial guess)
 
@@ -64,6 +64,17 @@ Rm_us  = im_us/pi_us_ss;
 
 % Transitions One Period Dynamics
 M_euus_ratio=M_eu/M_us;
+
+%% Non-financial sector parameters (matching-type independent)
+Theta_b = 1;
+Theta_d_eu = 1;
+Theta_d_us = 1;
+epsilon_b = -0.001;
+zeta_us = 1000;
+zeta_eu = 1000;
+
+% Adjustment to Euro rate (needed for CIP target)
+im_eu_adj = 0.0006;
 
 % Print confirmation
 if matching_type == 0
