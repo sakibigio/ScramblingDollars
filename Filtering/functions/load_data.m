@@ -82,14 +82,27 @@ BP_s_us_t = BP_s_all(:,1)/freq/100;
 CIP_s_all = xlsread('LFX_datainputs.xlsx','DataCounterpart','DA27:DJ260');
 CIP_s_us_t = CIP_s_all(:,1)/freq/100;
 
-%% Discount Window Counterpart
-DW_t = xlsread('LFX_datainputs.xlsx','DataCounterpart','BV27:BV260'); % Only Primary Credit
+%% Discount Window and Fed Funds Volume
+DW_n = xlsread('LFX_datainputs.xlsx','DataCounterpart','BV27:BV260'); % WLCFLPCL / TCDSL (primary credit / checkable deposits)
+FF_n = xlsread('LFX_datainputs.xlsx','DataCounterpart','BW27:BW260'); % FF volume / TCDSL (fed funds / checkable deposits)
+
+% Replace leading zeros with NaN (series start after sample beginning)
+% WLCFLPCL starts 2003, FF volume starts 2006
+first_dw = find(DW_n > 0, 1, 'first');
+first_ff = find(FF_n > 0, 1, 'first');
+if ~isempty(first_dw) && first_dw > 1
+    DW_n(1:first_dw-1) = NaN;
+end
+if ~isempty(first_ff) && first_ff > 1
+    FF_n(1:first_ff-1) = NaN;
+end
+fprintf('DW_n available from period %d, FF_n from period %d\n', first_dw, first_ff);
 
 %% Inflation and Money Base
 % US money base M_us
 %res_us_t = xlsread('LFX_rawdata.xls','EuroData','T28:T261');
 %sec_us_t = xlsread('LFX_rawdata.xls','EuroData','U28:U261');
-M_us_t = xlsread('LFX_datainputs.xlsx','DataCounterpart','AC27:AC260');
+M_us_t = xlsread('LFX_datainputs.xlsx','DataCounterpart','AC27:AC260')/1000; % in millions, convert to billions
 liq_t = (M_us_t);
 log_liq_t = log(liq_t);
 %log_liq_t_detrend = log_liq_t-(1:length(log_liq_t))'*log(mean(1+pi_us_t));
@@ -124,7 +137,7 @@ rho_M_us = B(2);
 sigma_M_us = std(R);
 
 % Euro Money
-M_eu_t         = xlsread('LFX_datainputs.xlsx','DataCounterpart','AD28:AD261');
+M_eu_t         = xlsread('LFX_datainputs.xlsx','DataCounterpart','AD28:AD261')/1000; % in millions, convert to billions
 liq_eu_t       = M_eu_t; 
 log_liq_eu_t   = log(M_eu_t);
 d_log_liq_eu_t = diff(log_liq_eu_t);
@@ -397,4 +410,4 @@ Ted_us=TED_s_us_t;
 Ted_eu=TED_s_eu_t;
 
 %% Save all data for dynare estimation
-eval(['save LFX_data3.mat mu_eu mu_us inv_e Ted_us Ted_eu inv_e_jp inv_e_ch M_us Rb_Rm Rb_Rm_eu Rb_us M_eu ois cip Chi_D_US pi_us_t pi_eu_t DW_t ' savelist ';']);
+eval(['save data/LFX_data.mat mu_eu mu_us inv_e Ted_us Ted_eu inv_e_jp inv_e_ch M_us Rb_Rm Rb_Rm_eu Rb_us M_eu ois cip Chi_D_US pi_us_t pi_eu_t DW_n FF_n ' savelist ';']);

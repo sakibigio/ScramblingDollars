@@ -243,11 +243,11 @@ title('DW/FF Ratio (\%)', 'interpreter', 'latex', 'fontsize', 16);
 
 %% Figure 16: DW Borrowing (Model vs Data)
 figure('Name', 'DW Borrowing: Model vs Data', 'NumberTitle', 'off') 
-mod_scale  = mean(DW_us_t(datesperiod)./M_us(datesperiod)');
-data_scale = mean(DW_t(datesperiod)./M_us(datesperiod));
-plot(dates(datesperiod), (DW_us_t(datesperiod)./M_us(datesperiod)')/mod_scale, 'LineWidth', 3); hold on;
-plot(dates(datesperiod), (DW_t(datesperiod)./M_us(datesperiod))/data_scale, 'LineWidth', 2, 'LineStyle', ':');
-grid on; axis tight;
+mod_scale  = nanmean(DW_us_t(datesperiod));
+data_scale = nanmean(DW_n(datesperiod));
+plot(dates(datesperiod), DW_us_t(datesperiod)*100, 'LineWidth', 3); hold on;
+plot(dates(datesperiod), DW_n(datesperiod)*100, 'LineWidth', 2, 'LineStyle', ':');
+ylabel('% of checkable deposits');
 datetick('x', 'mmm-yy', 'keeplimits');
 formataxis(gca);
 legend('model', 'data', 'Location', 'best');

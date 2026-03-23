@@ -3,8 +3,7 @@
 freq        = 12     ;  % frequency (e.g. 12 monthly) 
 
 %----------- Shock Distribution --------------
-ploss_eu    = 0.75   ;  % probability of an outflow of euro deposits
-ploss_us    = 0.75   ;  % probability of an outflow of dollar deposits
+
 sigma_us    = 0.02;    % Was 0.20 (initial guess)
 sigma_eu    = 0.015;   % Was 0.15 (initial guess)
 
@@ -21,11 +20,15 @@ if matching_type == 0
     lambda_us = 3.5;
     lambda_eu = 3.5;
     eta       = 0.5;
+    ploss_eu    = 0.75   ;  % probability of an outflow of euro deposits
+    ploss_us    = 0.75   ;  % probability of an outflow of dollar deposits
 elseif matching_type == 1
     % Cobb-Douglas matching
     lambda_us = 1.0 ; % 4.5 nice. eta = 0.625 nice values...
     lambda_eu = 1.0 ;
-    eta       = 0.65;
+    eta       = 0.7 ;
+    ploss_eu  = 0.5 ;  % probability of an outflow of euro deposits
+    ploss_us  = 0.5 ;  % probability of an outflow of dollar deposits
 else
     error('Unknown matching_type: %d. Use 0 (Leontief) or 1 (Cobb-Douglas)', matching_type);
 end

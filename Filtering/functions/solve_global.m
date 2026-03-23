@@ -64,8 +64,8 @@ M_euus_ratio_vec=M_eu_vec./M_us_vec;
 
 % proceed backwards... (not needed if use fsolve)
 close all;
-greedout=0.03;
-greedin=0.01;
+greedout=0.05;
+greedin=0.05;
 tol=1e-7; condout=2*tol;
 iterout=0;
 maxiterations=5000;
@@ -74,8 +74,21 @@ p_eu_vec_in=p_eu_vec;
 %x0 = [mu_eu_ss;mu_us_ss;Rd_eu_ss;Rd_us_ss;Rb_us_ss;bard_us;bard_eu/bard_us];
 pi_eu_ss = 1;
 pi_us_ss = 1;
+% x0 = [mu_eu_ss;mu_us_ss;Rd_eu_ss;Rd_us_ss;Rb_us_ss;bard_us;bard_eu/bard_us;Rm_eu_ss;Rm_us_ss;iota_eu_vec(1);iota_us_vec(1);pi_eu_ss;pi_us_ss;p_eu_ss;p_us_ss];
+% x0 = kron(x0,ones(1,N_s));
+% Line 77-78 (existing):
 x0 = [mu_eu_ss;mu_us_ss;Rd_eu_ss;Rd_us_ss;Rb_us_ss;bard_us;bard_eu/bard_us;Rm_eu_ss;Rm_us_ss;iota_eu_vec(1);iota_us_vec(1);pi_eu_ss;pi_us_ss;p_eu_ss;p_us_ss];
 x0 = kron(x0,ones(1,N_s));
+
+% Add right after line 78:
+% if isfile('data/initguess.mat')
+%     tmp = load('data/initguess.mat');
+%      if isfield(tmp, 'x0') && all(size(tmp.x0) == size(x0))
+%         x0 = tmp.x0;
+%         fprintf('Loaded warm start from initguess.mat\n');
+%     end
+% end
+
 %load initguess.mat;
 % solve transition path
 %{
@@ -95,7 +108,7 @@ LFX_nt_0e_eqs_2;
 %load 'initguess.mat';
 [x,fval,exitflag,~]=fsolve(@(x) ...
     feqm_vec(x,Echi_d,Echi_m,p_us_f,ploss_eu_vec,ploss_us_vec,sigma_eu_vec,sigma_us_vec,lambda_eu_vec,lambda_us_vec,Theta_b_vec,epsilon_b,Theta_d_eu_vec,Theta_d_us_vec,iw_eu_vec,iw_us_vec,im_eu_vec,im_us_vec,zeta_eu,zeta_us,M_eu,M_us,Q_mat,N_s),...
-    x0,optimoptions('fsolve','Display','iter','TolFun',1e-15,'MaxFunctionEvaluations',1e9,'MaxIterations',1e9));
+    x0,optimoptions('fsolve','Display','iter','TolFun',1e-8,'MaxFunctionEvaluations',1e9,'MaxIterations',1e9));
 mu_eu_vec = x(1,:);
 mu_us_vec = x(2,:);
 Rd_eu_vec = x(3,:);

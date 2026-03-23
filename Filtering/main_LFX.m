@@ -43,7 +43,7 @@ else
     foldername='/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion/quantfigs/';
 end
 
-printit=1;
+printit=0;
 plotit= 0;
 
 tic;
@@ -74,7 +74,7 @@ params;
 % Override sigma initial guesses for calibration solver
 % (feqm_calibrate solves for sigma — these are just starting points)
 sigma_eu = 0.15;
-sigma_us = 0.20;
+sigma_us = 0.2;
 
 %% Name Scenario
 nameplot='calibration_dynare_sigma_us';
