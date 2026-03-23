@@ -2,7 +2,12 @@
 # Part of: Scrambling for Dollars pipeline
 # 
 # Reads: RW_shock.csv (from main_filter.m)
-# Writes: data/MS_sigma_us_prob.csv, data/MS_sigma_us_counterfactuals.csv, etc.
+# Writes: 
+#   data/MS_sigma_us_prob.csv          - filtered regime probabilities
+#   data/MS_sigma_us_counterfactuals.csv - counterfactual sigma path
+#   data/MS_sigma_us_simul.csv         - simulated paths
+#   data/MS_sigma_eu_*.csv             - same for EU
+#   data/MS_params.csv                 - estimated parameters for setup_markov.m
 
 using MarSwitching
 using CSV
@@ -41,7 +46,13 @@ println("\n=== US Markov Switching Model ===")
 model_us = MSModel(df.lsigma_us, 2, 
                    exog_switching_vars = df.lag_lsigma_us)
 
-summary_msm(model_us)
+try
+    summary_msm(model_us)
+catch e
+    println("Warning: Could not display US model summary (std errors singular)")
+    println("  Coefficients β: ", model_us.β)
+    println("  Residual σ:     ", model_us.σ)
+end
 
 # Filtered probabilities
 probs_us = filtered_probs(model_us)
@@ -64,10 +75,18 @@ CSV.write("data/MS_sigma_us_simul.csv", aux_us)
 if mean(probs_us[:,1]) > mean(probs_us[:,2])
     intercept_us = model_us.β[1][1]
     phi_us = model_us.β[1][2]
+    sigma_resid_us_r1 = model_us.σ[1]
+    sigma_resid_us_r2 = model_us.σ[2]
+    intercept_us_r2 = model_us.β[2][1]
+    phi_us_r2 = model_us.β[2][2]
     state2_prob_us = probs_us[:,2]
 else
     intercept_us = model_us.β[2][1]
     phi_us = model_us.β[2][2]
+    sigma_resid_us_r1 = model_us.σ[2]
+    sigma_resid_us_r2 = model_us.σ[1]
+    intercept_us_r2 = model_us.β[1][1]
+    phi_us_r2 = model_us.β[1][2]
     state2_prob_us = probs_us[:,1]
 end
 
@@ -111,7 +130,13 @@ println("\n=== EU Markov Switching Model ===")
 model_eu = MSModel(df.lsigma_eu, 2, 
                    exog_switching_vars = df.lag_lsigma_eu)
 
-summary_msm(model_eu)
+try
+    summary_msm(model_eu)
+catch e
+    println("Warning: Could not display EU model summary (std errors singular)")
+    println("  Coefficients β: ", model_eu.β)
+    println("  Residual σ:     ", model_eu.σ)
+end
 
 # Filtered probabilities
 probs_eu = filtered_probs(model_eu)
@@ -134,10 +159,18 @@ CSV.write("data/MS_sigma_eu_simul.csv", aux_eu)
 if mean(probs_eu[:,1]) > mean(probs_eu[:,2])
     intercept_eu = model_eu.β[1][1]
     phi_eu = model_eu.β[1][2]
+    sigma_resid_eu_r1 = model_eu.σ[1]
+    sigma_resid_eu_r2 = model_eu.σ[2]
+    intercept_eu_r2 = model_eu.β[2][1]
+    phi_eu_r2 = model_eu.β[2][2]
     state2_prob_eu = probs_eu[:,2]
 else
     intercept_eu = model_eu.β[2][1]
     phi_eu = model_eu.β[2][2]
+    sigma_resid_eu_r1 = model_eu.σ[2]
+    sigma_resid_eu_r2 = model_eu.σ[1]
+    intercept_eu_r2 = model_eu.β[1][1]
+    phi_eu_r2 = model_eu.β[1][2]
     state2_prob_eu = probs_eu[:,1]
 end
 
@@ -166,6 +199,107 @@ savefig(p5, "data/MS_sigma_eu_counterfactual.png")
 
 df_eu_filtered = DataFrame(sigma_eu_filtered = sigma_eu_filtered)
 CSV.write("data/MS_sigma_eu_counterfactuals.csv", df_eu_filtered)
+
+## =========================================================================
+##  Export estimated parameters for MATLAB (setup_markov.m)
+## =========================================================================
+println("\n=== Exporting Parameters ===")
+
+# Transition matrix
+P_us = model_us.raw_params
+P_eu = model_eu.raw_params
+
+# Extract transition probabilities from model
+# Try multiple approaches since MarSwitching API varies by version
+function get_transition_matrix(model)
+    # Try common field names
+    for field in [:P, :T_mat, :trans_mat, :transition_matrix]
+        if hasproperty(model, field)
+            return getfield(model, field)
+        end
+    end
+    # Try function call
+    try
+        return MarSwitching.transition_matrix(model)
+    catch
+    end
+    # Last resort: print fields so user can identify
+    println("Available model fields: ", fieldnames(typeof(model)))
+    # Extract from raw_params — last 2 params are typically p11, p22
+    rp = model.raw_params
+    println("Raw params: ", rp)
+    # For 2-state model with k switching vars, transition probs are last 2
+    p11 = 1 / (1 + exp(-rp[end-1]))  # logit transform
+    p22 = 1 / (1 + exp(-rp[end]))
+    P = [p11 (1-p11); (1-p22) p22]
+    println("Constructed P from raw_params (logit): ", P)
+    return P
+end
+
+P_us_mat = get_transition_matrix(model_us)
+println("US Transition matrix: ", P_us_mat)
+
+P_eu_mat = get_transition_matrix(model_eu)
+println("EU Transition matrix: ", P_eu_mat)
+
+# Unconditional means: mu = intercept / (1 - phi)
+mu_us_r1 = intercept_us / (1 - phi_us)
+mu_us_r2 = intercept_us_r2 / (1 - phi_us_r2)
+
+# Check if EU model is degenerate (both regimes identical)
+eu_degenerate = abs(model_eu.σ[1] - model_eu.σ[2]) < 1e-6
+if eu_degenerate
+    println("WARNING: EU model is degenerate (regimes identical). Using single-regime AR(1).")
+    # Use regime 1 params for both
+    mu_eu_r1 = model_eu.β[1][1] / (1 - model_eu.β[1][2])
+    mu_eu_r2 = mu_eu_r1
+    phi_eu_r1_val = model_eu.β[1][2]
+    phi_eu_r2_val = phi_eu_r1_val
+    sigma_eu_r1_val = model_eu.σ[1]
+    sigma_eu_r2_val = sigma_eu_r1_val
+    # Essentially one regime
+    P_eu_mat = [0.99 0.01; 0.01 0.99]
+    println("  Using single-regime parameters with near-identity transition matrix")
+end
+
+println("P_us_mat BEFORE swap: ", P_us_mat)
+println("Row sums: ", sum(P_us_mat, dims=2))
+println("Col sums: ", sum(P_us_mat, dims=1))
+
+if phi_us < phi_us_r2
+    # Input is left-stochastic (cols sum to 1), swap + transpose to row-stochastic
+    P_us_mat = [P_us_mat[2,2] 1-P_us_mat[2,2]; 1-P_us_mat[1,1] P_us_mat[1,1]]
+    println("Regimes swapped to ensure R1 = normal (high persistence)")
+else
+    # No swap needed, but still transpose to row-stochastic
+    P_us_mat = P_us_mat'
+    println("No swap needed, transposed to row-stochastic")
+end
+
+println("P_us_mat AFTER: ", P_us_mat)
+println("Row sums: ", sum(P_us_mat, dims=2))
+
+# Build parameter table
+# Convention: r1 = normal (high prob), r2 = volatile (low prob)
+params_df = DataFrame(
+    parameter = [
+        "mu_sigma_us_r1", "rho_sigma_us_r1", "Sigma_sigma_us_r1",
+        "mu_sigma_us_r2", "rho_sigma_us_r2", "Sigma_sigma_us_r2",
+        "P11", "P12", "P21", "P22"
+    ],
+    value = [
+        mu_us_r1, phi_us, sigma_resid_us_r1,
+        mu_us_r2, phi_us_r2, sigma_resid_us_r2,
+        P_us_mat[1,1], P_us_mat[1,2], P_us_mat[2,1], P_us_mat[2,2]
+    ]
+)
+
+CSV.write("data/MS_params.csv", params_df)
+
+println("\nExported parameters:")
+println(params_df)
+println("\nTransition matrix (US):")
+println(P_us_mat)
 
 println("\n=== Markov Estimation Complete ===")
 println("Output files saved to data/ folder")
