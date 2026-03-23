@@ -25,35 +25,48 @@ Zprob_im_eu = 1    ;
 index1=1:N_sigma_us/2;
 index2=N_sigma_us/2+1:N_sigma_us;
 
-% % % Normal Regime:
-mu_sigma_us_r1 = -1.27 ;
-rho_sigma_us_r1 = 0.88 ;
-Sigma_sigma_us_r1 = 0.2;
-m_sigma_us_r1 = 8.0   ;
-% 
-% % Volatile Regime
-mu_sigma_us_r2 = -0.799;
-rho_sigma_us_r2 = 0.61 ;
-Sigma_sigma_us_r2 = 0.9;
-m_sigma_us_r2 = 2.5    ;
+% Load Markov regime parameters from Julia estimation
+% Source: markov_estimation.jl -> data/MS_params.csv
+ms_params_file = fullfile('data','MS_params.csv');
+if isfile(ms_params_file)
+    fid = fopen(ms_params_file, 'r');
+    fgetl(fid);  % skip header
+    data = textscan(fid, '%s%f', 'Delimiter', ',');
+    fclose(fid);
+    ms_map = containers.Map(data{1}, num2cell(data{2}));    
+    
+    % Normal Regime (from estimation)
+    mu_sigma_us_r1    = ms_map('mu_sigma_us_r1');
+    rho_sigma_us_r1   = ms_map('rho_sigma_us_r1');
+    Sigma_sigma_us_r1 = ms_map('Sigma_sigma_us_r1');
+    
+    % Volatile Regime (from estimation)
+    mu_sigma_us_r2    = ms_map('mu_sigma_us_r2');
+    rho_sigma_us_r2   = ms_map('rho_sigma_us_r2');
+    Sigma_sigma_us_r2 = ms_map('Sigma_sigma_us_r2');
+    
+    % Transition Probabilities (from estimation)
+    P = [ms_map('P11') ms_map('P12'); ms_map('P21') ms_map('P22')];
+    
+    disp('Markov parameters loaded from MS_params.csv');
+    fprintf('  R1: mu=%.3f, rho=%.2f, Sigma=%.2f\n', mu_sigma_us_r1, rho_sigma_us_r1, Sigma_sigma_us_r1);
+    fprintf('  R2: mu=%.3f, rho=%.2f, Sigma=%.2f\n', mu_sigma_us_r2, rho_sigma_us_r2, Sigma_sigma_us_r2);
+    fprintf('  P = [%.3f %.3f; %.3f %.3f]\n', P(1,1), P(1,2), P(2,1), P(2,2));
+else
+    warning('MS_params.csv not found — using hardcoded Leontief estimates');
+    % Fallback: Leontief-filtered estimates (submitted version)
+    mu_sigma_us_r1 = -1.27 ;
+    rho_sigma_us_r1 = 0.88 ;
+    Sigma_sigma_us_r1 = 0.15;
+    mu_sigma_us_r2 = -0.799;
+    rho_sigma_us_r2 = 0.61 ;
+    Sigma_sigma_us_r2 = 0.9;
+    P=[0.984 0.016; 0.061 0.939];
+end
 
-% % Transition Probabilities
-P=[0.984 0.016; 0.061 0.939];
-
-% % % Normal Regime:
-% mu_sigma_us_r1 = -1.0;
-% rho_sigma_us_r1 = 0.975;
-% Sigma_sigma_us_r1 = 0.2;
-% m_sigma_us_r1 = 3.5;
-% 
-% % Volatile Regime
-% mu_sigma_us_r2 = -1.0;
-% rho_sigma_us_r2 = 0.0;
-% Sigma_sigma_us_r2 = 0.2;
-% m_sigma_us_r2 = 14.5;
-% 
-% % Transition Probabilities
-% P=[0.999 0.001; 0.001 0.999];
+% Tauchen grid width (discretization choice, not estimated)
+m_sigma_us_r1 = 8.0;  % was 8.0
+m_sigma_us_r2 = 2.5;  % was 2.5
 
 % Construction of process
 Tauchen_method=1; Rouwenhorst_method=0;
@@ -63,7 +76,7 @@ if Tauchen_method==1
 
 elseif Rouwenhorst_method==1
     [Z_sigma_us_r1,Zprob_sigma_us_r1] =discretizeAR1_Rouwenhorst(mu_sigma_us_r1*(1-rho_sigma_us_r1),rho_sigma_us_r1,Sigma_sigma_us_r1,N_sigma_us/2);
-    [Z_sigma_us_r2,Zprob_sigma_us_r2] =discretizeAR1_Rouwenhorst(mu_sigma_us_r2,rho_sigma_us_r2,Sigma_sigma_us_r2,N_sigma_us/2);
+    [Z_sigma_us_r2,Zprob_sigma_us_r2] =discretizeAR1_Rouwenhorst(mu_sigma_us_r2*(1-rho_sigma_us_r2),rho_sigma_us_r2,Sigma_sigma_us_r2,N_sigma_us/2);
 end
 [eig_vecs1,eigs1]=eig(Zprob_sigma_us_r1');
 invp1=eig_vecs1(:,1)/(sum(eig_vecs1(:,1)));
