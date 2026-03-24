@@ -35,6 +35,14 @@ bp_vec_r2=bp_vec(index2);
 cip_vec_r2=cip_vec(index2);
 pi_us_ret_vec_r2=pi_us_ret_vec(index2);
 
+% DW and FF volumes (% of checkable deposits)
+dw_pct_vec=DW_us_vec*100;
+ff_pct_vec=FF_us_vec*100;
+dw_pct_vec_r1=dw_pct_vec(index1);
+dw_pct_vec_r2=dw_pct_vec(index2);
+ff_pct_vec_r1=ff_pct_vec(index1);
+ff_pct_vec_r2=ff_pct_vec(index2);
+
 % means:
 E_e=e_euus_vec*invp;
 E_bp=bp_vec*invp;
@@ -48,6 +56,12 @@ E_e_r2=e_euus_vec_r2*invp2;
 E_bp_r2=bp_vec_r2*invp2;
 E_cip_r2=cip_vec_r2*invp2;
 E_pi_ret_us_r2=pi_us_ret_vec_r2*invp2;
+E_dw=dw_pct_vec*invp;
+E_dw_r1=dw_pct_vec_r1*invp1;
+E_dw_r2=dw_pct_vec_r2*invp2;
+E_ff=ff_pct_vec*invp;
+E_ff_r1=ff_pct_vec_r1*invp1;
+E_ff_r2=ff_pct_vec_r2*invp2;
 
 % standard deviations:
 std_e=sqrt((e_euus_vec-E_e).^2*invp);
@@ -62,6 +76,12 @@ std_e_r2=sqrt((e_euus_vec_r2-E_e_r2).^2*invp2);
 std_bp_r2=sqrt((bp_vec_r2-E_bp_r2).^2*invp2);
 std_cip_r2=sqrt((cip_vec_r2-E_cip_r2).^2*invp2);
 std_pi_ret_us_r2=sqrt((pi_us_ret_vec_r2-E_pi_ret_us_r2).^2*invp2);
+std_dw=sqrt((dw_pct_vec-E_dw).^2*invp);
+std_dw_r1=sqrt((dw_pct_vec_r1-E_dw_r1).^2*invp1);
+std_dw_r2=sqrt((dw_pct_vec_r2-E_dw_r2).^2*invp2);
+std_ff=sqrt((ff_pct_vec-E_ff).^2*invp);
+std_ff_r1=sqrt((ff_pct_vec_r1-E_ff_r1).^2*invp1);
+std_ff_r2=sqrt((ff_pct_vec_r2-E_ff_r2).^2*invp2);
 
 % Moments Conditional on Jump
 Dev_Mat=(((e_euus_vec').^(-1)*e_euus_vec)-1)*rate_scale;
@@ -90,11 +110,15 @@ fclose(fid);
 E_e_sim=mean(e_euus_t);
 E_bp_sim=mean(bp_us_t);
 E_cip_sim=mean(uip_Rm_t);
+E_dw_sim=mean(DW_us_mc)*100;
+E_ff_sim=mean(FF_us_mc)*100;
 
 % standard deviations:
 std_e_sim=std(e_euus_t);
 std_bp_sim=std(bp_us_t);
 std_cip_sim=std(uip_Rm_t);
+std_dw_sim=std(DW_us_mc)*100;
+std_ff_sim=std(FF_us_mc)*100;
 
 % autocorrelation:
 aux=autocorr(e_euus_t);
@@ -105,6 +129,10 @@ aux=autocorr(uip_Rm_t);
 rho_cip_sim=aux(2);
 aux=autocorr(pi_us_t);
 rho_pi_us_sim=aux(2);
+aux=autocorr(DW_us_mc);
+rho_dw_sim=aux(2);
+aux=autocorr(FF_us_mc);
+rho_ff_sim=aux(2);
 
 % Autocorrelation by Regime
 index_r1=chain<=N_sigma_us/2;
@@ -128,8 +156,14 @@ aux=autocorr(pi_us_t(index_r1));
 rho_pi_us_sim_r1=aux(2);
 aux=autocorr(pi_us_t(index_r2));
 rho_pi_us_sim_r2=aux(2);
-
-
+aux=autocorr(DW_us_mc(index_r1));
+rho_dw_sim_r1=aux(2);
+aux=autocorr(DW_us_mc(index_r2));
+rho_dw_sim_r2=aux(2);
+aux=autocorr(FF_us_mc(index_r1));
+rho_ff_sim_r1=aux(2);
+aux=autocorr(FF_us_mc(index_r2));
+rho_ff_sim_r2=aux(2);
 
 %% Print Model Moments to Table
 % Define folder and file name
@@ -175,13 +209,17 @@ model_moments = {'FX', 1, rho_e_sim, std_e/E_e, (E_e_r2./E_e_r1-1)*10000, rho_e_
                  'BP', E_bp, rho_bp_sim, std_bp, E_bp_r2-E_bp_r1, rho_bp_sim_r2, rho_bp_sim_r1, (std_bp_r2./std_bp_r1);                 
                  'CIP', E_cip, rho_cip_sim, std_cip, E_cip_r2-E_cip_r1, rho_cip_sim_r2, rho_cip_sim_r1, (std_cip_r2./std_cip_r1)};
 
-% fprintf(fid, '\\bottomrule\n');
 for ii = 1:size(model_moments, 1)
     fprintf(fid, '%s & %.1f & %.2f & %.1f & %.1f &  \\{ %.2f, %.2f \\} & %.1f \\\\ \n', model_moments{ii, :});
 end
 
-% Close the table
-% fprintf(fid, '\\bottomrule \n');
+% DW and FF rows (% of checkable deposits — different format from bps rows)
+vol_moments = {'DW (\\%%)', E_dw, rho_dw_sim, std_dw, E_dw_r2-E_dw_r1, rho_dw_sim_r2, rho_dw_sim_r1, (std_dw_r2./std_dw_r1);
+               'FF (\\%%)', E_ff, rho_ff_sim, std_ff, E_ff_r2-E_ff_r1, rho_ff_sim_r2, rho_ff_sim_r1, (std_ff_r2./std_ff_r1)};
+for ii = 1:size(vol_moments, 1)
+    fprintf(fid, '%s & %.3f & %.2f & %.3f & %.3f &  \\{ %.2f, %.2f \\} & %.1f \\\\ \n', vol_moments{ii, :});
+end
+
 fclose(fid);
 
 filename = fullfile(foldername, 'Mod_CIP_Moments.tex');

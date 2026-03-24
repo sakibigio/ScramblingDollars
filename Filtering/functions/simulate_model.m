@@ -168,6 +168,8 @@ im_us_t = im_us_vec(chain(:));
 im_eu_t = im_eu_vec(chain(:));
 imdiff_t = im_eu_t-im_us_t;
 pi_us_t  =pi_us_vec((chain(:)));
+DW_us_mc = DW_us_vec(chain(:));
+FF_us_mc = FF_us_vec(chain(:));
 
 disp(['Corr. exchange rate vs UIP Rm: ' num2str(corr(e_euus_t',uip_Rm_t'))]);
 disp(['Corr. exchange rate vs UIP Libor: ' num2str(corr(e_euus_t',uip_libor_t'))]);
