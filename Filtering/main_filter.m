@@ -5,9 +5,9 @@
 % Pipeline: main_filter.m → markov_estimation.jl → plot_regimes.m
 
 %% Setup - Preserve matching_type through clear
-%if ~exist('matching_type', 'var')
-    matching_type = 1;  % 0 = Leontief, 1 = Cobb-Douglas (default)
-% end
+if ~exist('matching_type', 'var')
+    matching_type = 0;  % 0 = Leontief, 1 = Cobb-Douglas (default)
+end
 save('temp_matching_type.mat', 'matching_type');
 
 %% Setup

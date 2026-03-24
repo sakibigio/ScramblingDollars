@@ -143,6 +143,11 @@ Echi_m_eu_vec = Echi_m(mu_eu_vec,ploss_eu_vec,sigma_eu_vec,iota_eu_vec,lambda_eu
 Echi_eu_vec = Echi(mu_eu_vec,ploss_eu_vec,sigma_eu_vec,iota_eu_vec,lambda_eu_vec)            ;
 Echi_us_vec = Echi(mu_us_vec,ploss_us_vec,sigma_us_vec,iota_us_vec,lambda_us_vec)            ;
 
+% Interbank Volumes (fraction of deposits)
+psi_us_vec = psi(theta_us_vec, lambda_us);
+FF_us_vec  = psi_us_vec .* Spl(mu_us_vec, ploss_us_vec, sigma_us_vec);
+DW_us_vec  = Smin(mu_us_vec, ploss_us_vec, sigma_us_vec) - FF_us_vec;
+
 % Saving Additional Rates
 RBond_us_vec  = RBond_us(mu_us_vec) ;
 RBond_eu_vec  = RBond_eu(mu_eu_vec) ;
