@@ -531,8 +531,8 @@ diff=aux2-aux1;
 for ii=1:length(index1)-1
     alphaVal1 = invp1(ii)/max(invp1);
     alphaVal2 = invp2(ii)/max(invp2);
-    plot(sigma_us_vec(index1(ii:ii+1)),aux1(ii:ii+1),'Color',[0 0 1 alphaVal1],'LineWidth',2); hold on;
-    plot(sigma_us_vec(index2(ii:ii+1)),aux2(ii:ii+1),'Color',[1 0 1 alphaVal2],'LineWidth',2);
+    plot(sigma_us_vec(index1(ii:ii+1)),aux1(ii:ii+1),'Color',min(1,max(0,alphaVal1*[0 0 1]+(1-alphaVal1)*[1 1 1])),'LineWidth',2); hold on;
+    plot(sigma_us_vec(index2(ii:ii+1)),aux2(ii:ii+1),'Color',min(1,max(0,alphaVal2*[1 0 1]+(1-alphaVal2)*[1 1 1])),'LineWidth',2);
 end
 %splot3(sigma_us_vec(index2),diff);
 xlim([sigma_us_vec(1) sigma_us_vec(end)]);
@@ -554,8 +554,8 @@ aux2=e_euus_vec(index2)/mean(e_euus_vec);
 for ii=1:length(index1)-1
     alphaVal1 = sqrt(invp1(ii)/max(invp1));
     alphaVal2 = sqrt(invp2(ii)/max(invp2));
-    plot(sigma_us_vec(index1(ii:ii+1)),aux1(ii:ii+1),'Color',[0 0 1 alphaVal1],'LineWidth',2); hold on;
-    plot(sigma_us_vec(index2(ii:ii+1)),aux2(ii:ii+1),'Color',[1 0 1 alphaVal2],'LineWidth',2);
+    plot(sigma_us_vec(index1(ii:ii+1)),aux1(ii:ii+1),'Color',min(1,max(0,alphaVal1*[0 0 1]+(1-alphaVal1)*[1 1 1])),'LineWidth',2); hold on;
+    plot(sigma_us_vec(index2(ii:ii+1)),aux2(ii:ii+1),'Color',min(1,max(0,alphaVal2*[1 0 1]+(1-alphaVal2)*[1 1 1])),'LineWidth',2);
 end
 %splot3(sigma_us_vec(index2),diff);
 xlim([sigma_us_vec(1) sigma_us_vec(end)]);
@@ -577,8 +577,8 @@ diff=aux2-aux1;
 for ii=1:length(index1)-1
     alphaVal1 = sqrt(invp1(ii)/max(invp1));
     alphaVal2 = sqrt(invp2(ii)/max(invp2));
-    plot(sigma_us_vec(index1(ii:ii+1)),aux1(ii:ii+1),'Color',[0 0 1 alphaVal1],'LineWidth',2); hold on;
-    plot(sigma_us_vec(index2(ii:ii+1)),aux2(ii:ii+1),'Color',[1 0 1 alphaVal2],'LineWidth',2);
+    plot(sigma_us_vec(index1(ii:ii+1)),aux1(ii:ii+1),'Color',min(1,max(0,alphaVal1*[0 0 1]+(1-alphaVal1)*[1 1 1])),'LineWidth',2); hold on;
+    plot(sigma_us_vec(index2(ii:ii+1)),aux2(ii:ii+1),'Color',min(1,max(0,alphaVal2*[1 0 1]+(1-alphaVal2)*[1 1 1])),'LineWidth',2);
 end
 %splot3(sigma_us_vec(index2),diff);
 xlim([sigma_us_vec(1) sigma_us_vec(end)]);
