@@ -1,31 +1,46 @@
-%% plot_regimes.m - Plot Filter Results with Regime Shading
+%% plot_regimes.m  –  Filter Results with Markov Regime Shading
 % =========================================================================
-% Plots filter results with Markov regime shading.
-% Run AFTER markov_estimation.jl generates MS_sigma_us_prob.csv.
+% Generates the paper figures from the filtering exercise:
 %
-% Pipeline: main_filter.m → markov_estimation.jl → plot_regimes.m
+%   Fig. "Data Variables" (6 panels):
+%     F_sigmauseu.pdf        – (a) Implied sigma_t
+%     F_Tedtargets.pdf       – (b) TED Spread
+%     F_BPus_fit.pdf         – (c) US Bond Premia
+%     F_BPeu_fit.pdf         – (d) EU Bond Premia
+%     F_DWus_fit.pdf         – (e) US Window / Interbank (% of deposits)
+%     F_IBdispersion.pdf     – (f) Dispersion in US Interbank Rates
 %
-% Required files:
-%   - MS_sigma_us_prob.csv (from Julia Markov estimation)
+%   Fig. "Estimation and Filtered Probabilities":
+%     F_sigmaus_states.pdf   – Filtered regime probabilities
 %
-% Required variables from workspace:
-%   - sigma_us_t, sigma_eu_t, sigma_us_TED_t, sigma_eu_TED_t
-%   - BP_us_t, BP_eu_t, TED_us_t, TED_eu_t, CIP_t
-%   - theta_us_t, Smin_us_t, DW_us_t, FF_us_t
-%   - dates, datesperiod, abs_scale
+% PIPELINE
+%   main_filter.m  →  markov_estimation.jl  →  plot_regimes.m
+%
+% REQUIRED FILE
+%   data/MS_sigma_us_prob.csv   – produced by markov_estimation.jl
+%
+% REQUIRED WORKSPACE VARIABLES (all produced by main_filter.m)
+%   sigma_us_t, sigma_eu_t, sigma_us_TED_t, sigma_eu_TED_t
+%   BP_us_t, BP_eu_t, TED_us_t, TED_eu_t, CIP_t
+%   DW_us_t, FF_us_t          – model DW/FF as fraction of checkable deposits
+%   DW_n, FF_n                – data DW/FF as fraction of checkable deposits
+%                               (from LFX_data.mat; NaN before series start)
+%   Rb_Rm, Rb_Rm_eu, cip, Chi_D_US
+%   dates, datesperiod, abs_scale
 %
 % (c) Saki Bigio
 % =========================================================================
 
-%% Settings
-printit = 0;  % Set to 1 to save figures
-threshold = 0.5;  % Probability threshold for regime classification
+%% ── 0. SETTINGS ─────────────────────────────────────────────────────────
 
-% Colors
-eu_color = [0.4 0.1 1.0];
-data_color = [0.7 0.1 0.4];
+% Inherit printit from main_filter.m if available; default to 0
+if ~exist('printit', 'var')
+    printit = 0;
+end
 
-% Set output folder based on machine
+threshold = 0.5;    % Prob. of low-risk state below which = scrambling regime
+
+% Output folder: match convention from other plotting scripts
 [~, username] = system('whoami');
 username = strtrim(username);
 if strcmp(username, 'sakibigio')
@@ -33,392 +48,278 @@ if strcmp(username, 'sakibigio')
 elseif strcmp(username, 'sakiclaudia')
     foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion/quantfigs/';
 else
-    warning('Unknown user: %s. Figures will not be saved.', username);
-    foldername = './';
+    warning('Unknown user ''%s''. Figures will not be saved to Overleaf.', username);
+    foldername = './quantfigs/';
     printit = 0;
 end
+if ~exist(foldername, 'dir'), mkdir(foldername); end
 
-% Define formatting if not already defined
-if ~exist('formataxis', 'var')
-    formataxis = @(x) set(x, 'Fontname', 'Times', 'FontWeight', 'normal', ...
+% Formatting – guard allows standalone use outside main_filter.m
+if ~exist('formataxis', 'var') || ~isa(formataxis, 'function_handle')
+    formataxis = @(ax) set(ax, 'Fontname', 'Times', 'FontWeight', 'normal', ...
         'Fontsize', 14, 'Box', 'On');
 end
 
-%% Load Markov Regime Probabilities
+% Colours
+eu_color   = [0.40 0.10 1.00];    % blue-violet  – EU model series
+data_color = [0.70 0.10 0.40];    % dark magenta  – data series
+ff_color   = [0.20 0.50 0.20];    % dark green    – FF interbank
+
+%% ── 1. LOAD MARKOV REGIME PROBABILITIES ─────────────────────────────────
+
 prob_file = 'data/MS_sigma_us_prob.csv';
 if ~exist(prob_file, 'file')
-    warning('MS_sigma_us_prob.csv not found in data/. Run markov_estimation.jl first.');
-    fprintf('Skipping regime plots.\n');
-    return;
+    error(['plot_regimes: data/MS_sigma_us_prob.csv not found.\n' ...
+           'Run markov_estimation.jl first, then re-run plot_regimes.m.']);
 end
 
-% Read probabilities - use readmatrix for compatibility
 try
-    sigma_us_stateprob = readmatrix(prob_file, 'NumHeaderLines', 1);
+    raw_prob = readmatrix(prob_file, 'NumHeaderLines', 1);
 catch
-    sigma_us_stateprob = csvread(prob_file, 1, 0);
-end
-sigma_us_stateprob = [sigma_us_stateprob(:,1); 0];  % Append zero for indexing
-
-% Classify regimes
-sigma_us_high_t = sigma_us_stateprob < threshold;
-
-% Regime transitions
-sigma_us_high2low_t = [(sigma_us_high_t(1:end-1)==1) .* (sigma_us_high_t(2:end)==0); 0];
-sigma_us_low2high_t = [(sigma_us_high_t(1:end-1)==0) .* (sigma_us_high_t(2:end)==1); 0];
-
-% Convert dates to datetime if needed
-if isnumeric(dates)
-    dates = datetime(dates, 'ConvertFrom', 'datenum');
-elseif ~isdatetime(dates)
-    dates = datetime(dates);
+    raw_prob = csvread(prob_file, 1, 0);  %#ok<CSVRD>  % fallback for older MATLAB
 end
 
-%% ========================================================================
-%  REGIME PROBABILITY
-%  ========================================================================
+% sigma_us_stateprob(t) = Prob(low-risk / normal state at t)
+% scrambling  <=>  high_t == 1  <=>  low-risk prob < threshold
+sigma_us_stateprob = [raw_prob(:,2); 0];   % append 0 for safe end-indexing
+sigma_us_high_t    = (sigma_us_stateprob < threshold);
 
-figure('Name', 'High Liquidity Regime', 'NumberTitle', 'off')
-plot(dates(datesperiod), zeros(1,length(datesperiod)), 'LineWidth', 2, 'LineStyle', '--', 'Color', 'k'); hold on;
-plot(dates(datesperiod), sigma_us_stateprob(datesperiod), 'LineWidth', 3, 'Color', 'r'); 
-grid on; axis tight;
-xtickformat('MMM-yy');
-formataxis(gca);
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), sigma_us_stateprob(datesperiod), 'LineWidth', 2, 'Color', 'r'); 
-title('Prob. Low Funding Risk State', 'interpreter', 'latex', 'fontsize', 16);
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_sigmaus_states' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
+%% ── 2. HELPER: REGIME SHADING ───────────────────────────────────────────
+% Call AFTER data lines are drawn so ylim is stable.
+% Patches are pushed to background with uistack.
 
-%% ========================================================================
-%  SIGMA ESTIMATES WITH REGIMES
-%  ========================================================================
-
-figure('Name', 'Sigma US/EU', 'NumberTitle', 'off')
-plot(dates(datesperiod), ones(1,length(datesperiod))*mean(sigma_us_t), 'LineWidth', 2, 'LineStyle', '--', 'Color', 'k'); hold on;
-plot(dates(datesperiod), sigma_us_TED_t(datesperiod), 'LineWidth', 3, 'Color', 'r'); 
-plot(dates(datesperiod), sigma_eu_TED_t(datesperiod), 'LineWidth', 3, 'LineStyle', '-.', 'Color', eu_color); 
-grid on; axis tight;
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), sigma_us_TED_t(datesperiod), 'LineWidth', 3, 'Color', 'r'); 
-plot(dates(datesperiod), sigma_eu_TED_t(datesperiod), 'LineWidth', 3, 'LineStyle', '-.', 'Color', eu_color); 
-legend('', 'US', 'EU', 'box', 'off', 'color', 'none');
-xtickformat('MMM-yy');
-formataxis(gca);
-title('$\sigma$ Estimates', 'interpreter', 'latex', 'fontsize', 16);
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_sigmauseu' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
-
-%% ========================================================================
-%  TED SPREADS
-%  ========================================================================
-
-figure('Name', 'TED Comparison', 'NumberTitle', 'off') 
-plot(dates(datesperiod), ones(1,length(datesperiod))*mean(TED_us_t)*abs_scale, 'LineWidth', 2, 'LineStyle', '--', 'Color', 'k'); hold on;
-plot(dates(datesperiod), TED_us_t(datesperiod)*abs_scale, 'LineWidth', 3, 'Color', 'r');
-plot(dates(datesperiod), TED_eu_t(datesperiod)*abs_scale, 'LineWidth', 3, 'LineStyle', '-.', 'Color', eu_color);
-grid on; axis tight;
-xtickformat('MMM-yy');
-formataxis(gca);
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), TED_us_t(datesperiod)*abs_scale, 'LineWidth', 3, 'Color', 'r');
-plot(dates(datesperiod), TED_eu_t(datesperiod)*abs_scale, 'LineWidth', 3, 'LineStyle', '-.', 'Color', eu_color);
-legend('', 'US', 'EU', 'box', 'off', 'color', 'none');
-title('TED Spreads (bps)', 'interpreter', 'latex', 'fontsize', 16);
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_Tedtargets' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
-
-%% ========================================================================
-%  BOND PREMIA (MODEL VS DATA)
-%  ========================================================================
-
-% Handle NaN values
-NaNindex = (Rb_Rm == 0);
-Rb_Rm_plot = Rb_Rm;
-Rb_Rm_plot(NaNindex) = NaN;
-
-figure('Name', 'US Bond Premium', 'NumberTitle', 'off') 
-plot(dates(datesperiod), zeros(1,length(datesperiod)), 'LineWidth', 2, 'LineStyle', '--', 'Color', 'k'); hold on;
-plot(dates(datesperiod), (BP_us_t(datesperiod)-mean(BP_us_t))*abs_scale, 'LineWidth', 3);
-plot(dates(datesperiod), (Rb_Rm_plot(datesperiod)-mean(Rb_Rm_plot(~isnan(Rb_Rm_plot))))*abs_scale, 'LineWidth', 3, 'LineStyle', '-.', 'Color', data_color);
-grid on; axis tight;
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), (BP_us_t(datesperiod)-mean(BP_us_t))*abs_scale, 'LineWidth', 3, 'Color', 'r');
-plot(dates(datesperiod), (Rb_Rm_plot(datesperiod)-mean(Rb_Rm_plot(~isnan(Rb_Rm_plot))))*abs_scale, 'LineWidth', 3, 'LineStyle', '-.', 'Color', data_color);
-legend('', 'Model', 'Data', 'box', 'off', 'color', 'none');
-xtickformat('MMM-yy');
-formataxis(gca);
-title('US Bond Premium (bps, demeaned)', 'interpreter', 'latex', 'fontsize', 16);
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_BPus_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
-
-% EU Bond Premium
-NaNindex = (Rb_Rm_eu == 0);
-Rb_Rm_eu_plot = Rb_Rm_eu;
-Rb_Rm_eu_plot(NaNindex) = NaN;
-
-figure('Name', 'EU Bond Premium', 'NumberTitle', 'off') 
-plot(dates(datesperiod), zeros(1,length(datesperiod)), 'LineWidth', 2, 'LineStyle', '--', 'Color', 'k'); hold on;
-plot(dates(datesperiod), (BP_eu_t(datesperiod)-mean(BP_eu_t))*abs_scale, 'LineWidth', 3);
-plot(dates(datesperiod), (Rb_Rm_eu_plot(datesperiod)-mean(Rb_Rm_eu_plot(~isnan(Rb_Rm_eu_plot))))*abs_scale, 'LineWidth', 3, 'LineStyle', '-.', 'Color', data_color);
-grid on; axis tight;
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), (BP_eu_t(datesperiod)-mean(BP_eu_t))*abs_scale, 'LineWidth', 3, 'Color', 'r');
-plot(dates(datesperiod), (Rb_Rm_eu_plot(datesperiod)-mean(Rb_Rm_eu_plot(~isnan(Rb_Rm_eu_plot))))*abs_scale, 'LineWidth', 3, 'LineStyle', '-.', 'Color', data_color);
-legend('', 'Model', 'Data', 'box', 'off', 'color', 'none');
-xtickformat('MMM-yy');
-formataxis(gca);
-title('EU Bond Premium (bps, demeaned)', 'interpreter', 'latex', 'fontsize', 16);
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_BPeu_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
-
-%% ========================================================================
-%  CIP DEVIATION
-%  ========================================================================
-
-figure('Name', 'CIP Deviation', 'NumberTitle', 'off') 
-plot(dates(datesperiod), ones(1,length(datesperiod))*mean(CIP_t(datesperiod))*abs_scale, 'LineWidth', 2, 'LineStyle', '--', 'Color', 'k'); hold on;
-plot(dates(datesperiod), cip(datesperiod)*abs_scale, 'LineWidth', 3, 'LineStyle', '-');
-grid on; axis tight;
-xtickformat('MMM-yy');
-formataxis(gca);
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), cip(datesperiod)*abs_scale, 'LineWidth', 3, 'LineStyle', '-', 'Color', data_color);
-title('CIP Deviation (bps)', 'interpreter', 'latex', 'fontsize', 16);
-if printit == 1
-    exportfig(gcf, [foldername 'F_CIP' mt_suffix], 'color', 'cmyk', 'resolution', 1600);
-end
-
-%% ========================================================================
-%  INTERBANK DISPERSION
-%  ========================================================================
-
-figure('Name', 'Interbank Dispersion', 'NumberTitle', 'off') 
-plot(dates(datesperiod), ones(1,length(datesperiod))*mean(Chi_D_US(datesperiod))*abs_scale, 'LineWidth', 2, 'LineStyle', '--', 'Color', 'k'); hold on;
-plot(dates(datesperiod), Chi_D_US(datesperiod)*abs_scale, 'LineWidth', 3, 'LineStyle', '-');
-grid on; axis tight;
-xtickformat('MMM-yy');
-formataxis(gca); 
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), Chi_D_US(datesperiod)*abs_scale, 'LineWidth', 2, 'LineStyle', '-', 'Color', data_color);
-title('US Interbank Dispersion (bps)', 'interpreter', 'latex', 'fontsize', 16);
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_IBdispersion' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
-
-%% ========================================================================
-%  FUNDING COMPOSITION
-%  ========================================================================
-
-figure('Name', 'Market Tightness', 'NumberTitle', 'off')  
-plot(dates(datesperiod), log(theta_us_t(datesperiod)), 'LineWidth', 3); hold on;
-plot(dates(datesperiod), log(theta_eu_t(datesperiod)), 'LineWidth', 3); hold off;
-grid on; axis tight;
-xtickformat('MMM-yy');
-formataxis(gca);
-legend('US', 'EU', 'Location', 'best');
-title('Log Market Tightness $\theta$', 'interpreter', 'latex', 'fontsize', 16);
-
-figure('Name', 'Funding Composition', 'NumberTitle', 'off')  
-plot(dates(datesperiod), Smin_us_t(datesperiod), 'LineWidth', 3); hold on;
-plot(dates(datesperiod), DW_us_t(datesperiod), 'LineWidth', 3); 
-plot(dates(datesperiod), FF_us_t(datesperiod), 'LineWidth', 1); hold off;
-grid on; axis tight;
-xtickformat('MMM-yy');
-formataxis(gca);
-legend('Funding Need', 'DW Funded', 'FF Funded', 'Location', 'best');
-title('US Funding Composition', 'interpreter', 'latex', 'fontsize', 16);
-
-%% ========================================================================
-%  DW BORROWING (MODEL VS DATA)
-%  ========================================================================
-
-figure('Name', 'DW Borrowing', 'NumberTitle', 'off') 
-mod_scale  = mean(DW_us_t(datesperiod)./M_us(datesperiod)');
-data_scale = mean(DW_t(datesperiod)./M_us(datesperiod));
-plot(dates(datesperiod), (DW_us_t(datesperiod)./M_us(datesperiod)')/mod_scale, 'LineWidth', 3, 'Color', 'r'); hold on;
-plot(dates(datesperiod), (DW_t(datesperiod)./M_us(datesperiod))/data_scale, 'LineWidth', 3, 'LineStyle', '-.', 'Color', data_color);
-grid on; axis tight;
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), (DW_us_t(datesperiod)./M_us(datesperiod)')/mod_scale, 'LineWidth', 3, 'Color', 'r');
-plot(dates(datesperiod), (DW_t(datesperiod)./M_us(datesperiod))/data_scale, 'LineWidth', 3, 'LineStyle', '-.', 'Color', data_color);
-xtickformat('MMM-yy');
-formataxis(gca); 
-legend('Model', 'Data', 'box', 'off', 'color', 'none');
-title('DW Borrowing / Reserves (normalized)', 'interpreter', 'latex', 'fontsize', 16);
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_DWus_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
-
-%% ========================================================================
-%  MULTI-CURRENCY CIP WITH REGIMES
-%  ========================================================================
-
-desiredNumXTicks = 3;
-
-figure('Name', 'CIP All Currencies', 'NumberTitle', 'off') 
-subplot(3, 3, 1); 
-plot(dates(datesperiod), CIP_s_eu_t(datesperiod)*abs_scale, 'LineWidth', 2); hold on;
-xtickformat('MM-yy');
-grid on; axis tight;
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), CIP_s_eu_t(datesperiod)*abs_scale, 'LineWidth', 2, 'Color', data_color);
-ax = gca;
-xLimits = get(ax, 'XLim');
-customXTicks = linspace(xLimits(1), xLimits(2), desiredNumXTicks);
-set(ax, 'XTick', customXTicks);
-title('EU', 'interpreter', 'latex', 'Fontsize', 15);
-
-for j = 1:length(curlist)
-    CIP_data = eval(['CIP_s_' curlist{j} '_t(datesperiod)']);
-    subplot(3, 3, j+1);
-    plot(dates(datesperiod), CIP_data*abs_scale, 'LineWidth', 2); hold on;
-    regime_patches(dates, datesperiod, sigma_us_high_t);
-    plot(dates(datesperiod), CIP_data*abs_scale, 'LineWidth', 2, 'Color', data_color);
-    xtickformat('MM-yy');
-    grid on; axis tight;
-    ax = gca;
-    xLimits = get(ax, 'XLim');
-    customXTicks = linspace(xLimits(1), xLimits(2), desiredNumXTicks);
-    set(ax, 'XTick', customXTicks);
-    title(conlist{j}, 'interpreter', 'latex', 'Fontsize', 15);
-end
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_CIP_all' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
-
-%% ========================================================================
-%  FX DEVALUATION WITH REGIMES
-%  ========================================================================
-
-figure('Name', 'FX Devaluation All', 'NumberTitle', 'off')
-datesperiod_f = datesperiod(2:end);
-datesperiod_l = datesperiod(1:end-1);
-
-subplot(3, 3, 1);
-temp2 = (ln_eu_us_t(datesperiod_f) - ln_eu_us_t(datesperiod_l)) * abs_scale/100;
-plot(dates(datesperiod_f), temp2, 'LineWidth', 1, 'LineStyle', '-', 'Color', data_color); hold on;
-regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod_f), temp2, 'LineWidth', 1, 'LineStyle', '-', 'Color', data_color);
-xtickformat('MM-yy');
-ax = gca;
-xLimits = get(ax, 'XLim');
-customXTicks = linspace(xLimits(1), xLimits(2), desiredNumXTicks);
-set(ax, 'XTick', customXTicks);
-grid on; axis tight;
-title('EU/USD', 'interpreter', 'latex', 'Fontsize', 15);
-
-for j = 1:length(curlist)
-    subplot(3, 3, j+1);
-    ln_data = eval(['ln_' curlist{j} '_us_t']);
-    temp2 = (ln_data(datesperiod_f) - ln_data(datesperiod_l)) * abs_scale/100;
-    plot(dates(datesperiod_f), temp2, 'LineWidth', 1, 'LineStyle', '-', 'Color', data_color); hold on;
-    regime_patches(dates, datesperiod, sigma_us_high_t);
-    plot(dates(datesperiod_f), temp2, 'LineWidth', 1, 'LineStyle', '-', 'Color', data_color);
-    xtickformat('MM-yy');
-    grid on; axis tight;
-    ax = gca;
-    xLimits = get(ax, 'XLim');
-    customXTicks = linspace(xLimits(1), xLimits(2), desiredNumXTicks);
-    set(ax, 'XTick', customXTicks);
-    title([conlist{j} '/USD'], 'interpreter', 'latex', 'Fontsize', 15);
-end
-if printit == 1
-    exportgraphics(gcf, fullfile(foldername, ['F_devaluation_all' mt_suffix '.pdf']), 'ContentType', 'vector');
-end
-
-%% ========================================================================
-%  REGIME MOMENTS (EXPORT TO LATEX)
-%  ========================================================================
-
-% Regime indices
-index_r2 = sigma_us_high_t;
-index_r1 = ~index_r2;
-dev_t = ((inv_e_t(2:end)./inv_e_t(1:end-1)).^(-1) - 1) * abs_scale;
-
-% Average regime change
-dev_low2high = mean(dev_t(sigma_us_low2high_t == 1));
-dev_high2low = mean(dev_t(sigma_us_high2low_t == 1));
-
-% Unconditional moments
-E_bp_data = mean(BP_us_t) * abs_scale;
-E_cip_data = mean(CIP_s_eu_t) * abs_scale;
-E_dev_data = mean(dev_t);
-
-std_bp_data = std(BP_us_t) * abs_scale;
-std_cip_data = std(CIP_s_eu_t) * abs_scale;
-std_dev_data = std(dev_t);
-
-aux = autocorr(BP_us_t); rho_bp_data = aux(2);
-aux = autocorr(CIP_s_eu_t); rho_cip_data = aux(2);
-aux = autocorr(dev_t); rho_dev_data = aux(2);
-
-% Conditional moments (Regime 1 = Low risk)
-E_bp_data_r1 = mean(BP_us_t(index_r1)) * abs_scale;
-E_cip_data_r1 = mean(CIP_s_eu_t(index_r1)) * abs_scale;
-E_dev_data_r1 = mean(dev_t(index_r1(1:end-1)));
-
-std_bp_data_r1 = std(BP_us_t(index_r1)) * abs_scale;
-std_cip_data_r1 = std(CIP_s_eu_t(index_r1)) * abs_scale;
-std_dev_data_r1 = std(dev_t(index_r1(1:end-1)));
-
-aux = autocorr(BP_us_t(index_r1)); rho_bp_data_r1 = aux(2);
-aux = autocorr(CIP_s_eu_t(index_r1)); rho_cip_data_r1 = aux(2);
-aux = autocorr(dev_t(index_r1(1:end-1))); rho_dev_data_r1 = aux(2);
-
-% Conditional moments (Regime 2 = High risk)
-E_bp_data_r2 = mean(BP_us_t(index_r2)) * abs_scale;
-E_cip_data_r2 = mean(CIP_s_eu_t(index_r2)) * abs_scale;
-E_dev_data_r2 = mean(dev_t(index_r2(1:end-1)));
-
-std_bp_data_r2 = std(BP_us_t(index_r2)) * abs_scale;
-std_cip_data_r2 = std(CIP_s_eu_t(index_r2)) * abs_scale;
-std_dev_data_r2 = std(dev_t(index_r2(1:end-1)));
-
-aux = autocorr(BP_us_t(index_r2)); rho_bp_data_r2 = aux(2);
-aux = autocorr(CIP_s_eu_t(index_r2)); rho_cip_data_r2 = aux(2);
-aux = autocorr(dev_t(index_r2(1:end-1))); rho_dev_data_r2 = aux(2);
-
-% Print summary
-fprintf('\n=== Regime Moments ===\n');
-fprintf('                    Uncond    Low-Risk   High-Risk\n');
-fprintf('BP mean (bps):      %6.1f    %6.1f     %6.1f\n', E_bp_data, E_bp_data_r1, E_bp_data_r2);
-fprintf('CIP mean (bps):     %6.1f    %6.1f     %6.1f\n', E_cip_data, E_cip_data_r1, E_cip_data_r2);
-fprintf('Deval mean (bps):   %6.1f    %6.1f     %6.1f\n', E_dev_data, E_dev_data_r1, E_dev_data_r2);
-
-% Save to LaTeX (if printing)
-if printit == 1
-    filename = fullfile(foldername, ['Data_CIP_Moments' mt_suffix '.tex']);
-    fid = fopen(filename, 'wt');
-    fprintf(fid, 'CIP (data) & %.1f & %.2f & %.1f & %.1f & \\{ %.2f, %.2f \\} & %.1f \\\\ \n', ...
-        E_cip_data, rho_cip_data, std_cip_data, E_cip_data_r2-E_cip_data_r1, ...
-        rho_cip_data_r2, rho_cip_data_r1, std_cip_data_r2/std_cip_data_r1);
-    fclose(fid);
-    fprintf('Saved: %s\n', filename);
-end
-
-%% Summary
-fprintf('plot_regimes complete. 13 figures generated.\n');
-
-%% ========================================================================
-%  HELPER FUNCTION
-%  ========================================================================
-
-function out = regime_patches(dates, datesperiod, sigma_us_high_t)
-    % Add shaded patches for high-risk regime periods
-    y_limits = ylim;
-    for i = 1:length(datesperiod) - 1
-        if sigma_us_high_t(i) == 1
-            x_patch = [dates(datesperiod(i)), dates(datesperiod(i + 1)), ...
-                       dates(datesperiod(i + 1)), dates(datesperiod(i))];
-            y_patch = [y_limits(1), y_limits(1), y_limits(2), y_limits(2)];
-            patch(x_patch, y_patch, [0.9, 0.9, 0.9], 'EdgeColor', 'none', 'FaceAlpha', 0.8);
+    function regime_patches(dates_vec, per, high_t)
+        % dates_vec : full datenum dates vector
+        % per       : index vector for sample period (datesperiod)
+        % high_t    : logical(T_full), 1 = scrambling period
+        yl  = ylim;
+        buf = diff(yl) * 0.02;
+        yl(1) = yl(1) - buf;  yl(2) = yl(2) + buf;
+        shade = [0.82 0.82 0.82];
+        for ii = 1:numel(per) - 1
+            if high_t(per(ii)) == 1
+                xp = [dates_vec(per(ii))   dates_vec(per(ii+1)) ...
+                      dates_vec(per(ii+1)) dates_vec(per(ii))];
+                yp = [yl(1) yl(1) yl(2) yl(2)];
+                h  = patch(xp, yp, shade, 'EdgeColor', 'none', 'FaceAlpha', 0.85);
+                uistack(h, 'bottom');
+            end
         end
+        ylim(yl);
     end
-    out = [];
+
+%% ── 3. FIGURE (a)  –  SIGMA ESTIMATES ───────────────────────────────────
+
+figure('Name', 'Sigma US/EU', 'NumberTitle', 'off');
+plot(dates(datesperiod), mean(sigma_us_t) * ones(1, numel(datesperiod)), ...
+    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
+h_us = plot(dates(datesperiod), sigma_us_TED_t(datesperiod), 'LineWidth', 2.5, 'Color', 'r');
+h_eu = plot(dates(datesperiod), sigma_eu_TED_t(datesperiod), 'LineWidth', 2.5, ...
+    'LineStyle', '-.', 'Color', eu_color);
+grid on; axis tight;
+datetick('x', 'mmm-yy', 'keeplimits');
+formataxis(gca);
+regime_patches(dates, datesperiod, sigma_us_high_t);
+legend([h_us h_eu], 'US', 'EU', 'Box', 'off', 'Color', 'none', 'Location', 'northwest');
+plot(dates(datesperiod), sigma_us_TED_t(datesperiod), 'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
+plot(dates(datesperiod), sigma_eu_TED_t(datesperiod), 'LineWidth', 2.5, ...
+    'LineStyle', '-.', 'Color', eu_color, 'HandleVisibility', 'off');
+title('Implied $\sigma^x_t$', 'Interpreter', 'latex', 'Fontsize', 16);
+if printit
+    exportgraphics(gcf, fullfile(foldername, 'F_sigmauseu.pdf'), 'ContentType', 'vector');
 end
+
+%% ── 4. FIGURE (b)  –  TED SPREAD ────────────────────────────────────────
+
+figure('Name', 'TED Spread', 'NumberTitle', 'off');
+plot(dates(datesperiod), mean(TED_us_t) * abs_scale * ones(1, numel(datesperiod)), ...
+    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
+h_us = plot(dates(datesperiod), TED_us_t(datesperiod) * abs_scale, 'LineWidth', 2.5, 'Color', 'r');
+h_eu = plot(dates(datesperiod), TED_eu_t(datesperiod) * abs_scale, 'LineWidth', 2.5, ...
+    'LineStyle', '-.', 'Color', eu_color);
+grid on; axis tight;
+datetick('x', 'mmm-yy', 'keeplimits');
+formataxis(gca);
+regime_patches(dates, datesperiod, sigma_us_high_t);
+legend([h_us h_eu], 'US', 'EU', 'Box', 'off', 'Color', 'none');
+plot(dates(datesperiod), TED_us_t(datesperiod) * abs_scale, 'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
+plot(dates(datesperiod), TED_eu_t(datesperiod) * abs_scale, 'LineWidth', 2.5, ...
+    'LineStyle', '-.', 'Color', eu_color, 'HandleVisibility', 'off');
+title('$\mathcal{TED}$ Spread (bps)', 'Interpreter', 'latex', 'Fontsize', 16);
+if printit
+    exportgraphics(gcf, fullfile(foldername, 'F_Tedtargets.pdf'), 'ContentType', 'vector');
+end
+
+%% ── 5. FIGURE (c)  –  US BOND PREMIA ────────────────────────────────────
+
+NaN_us     = (Rb_Rm == 0);
+Rb_Rm_plot = Rb_Rm;  Rb_Rm_plot(NaN_us) = NaN;
+Rb_Rm_mean = mean(Rb_Rm_plot(~NaN_us));
+
+figure('Name', 'US Bond Premium', 'NumberTitle', 'off');
+plot(dates(datesperiod), zeros(1, numel(datesperiod)), ...
+    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
+h_mod = plot(dates(datesperiod), (BP_us_t(datesperiod) - mean(BP_us_t)) * abs_scale, ...
+    'LineWidth', 2.5, 'Color', 'r');
+h_dat = plot(dates(datesperiod), (Rb_Rm_plot(datesperiod) - Rb_Rm_mean) * abs_scale, ...
+    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color);
+grid on; axis tight;
+datetick('x', 'mmm-yy', 'keeplimits');
+formataxis(gca);
+regime_patches(dates, datesperiod, sigma_us_high_t);
+legend([h_mod h_dat], 'Model', 'Data', 'Box', 'off', 'Color', 'none');
+plot(dates(datesperiod), (BP_us_t(datesperiod) - mean(BP_us_t)) * abs_scale, ...
+    'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
+plot(dates(datesperiod), (Rb_Rm_plot(datesperiod) - Rb_Rm_mean) * abs_scale, ...
+    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color, 'HandleVisibility', 'off');
+title('US Bond Premia (bps, demeaned)', 'Interpreter', 'latex', 'Fontsize', 16);
+if printit
+    exportgraphics(gcf, fullfile(foldername, 'F_BPus_fit.pdf'), 'ContentType', 'vector');
+end
+
+%% ── 6. FIGURE (d)  –  EU BOND PREMIA ────────────────────────────────────
+
+NaN_eu        = (Rb_Rm_eu == 0);
+Rb_Rm_eu_plot = Rb_Rm_eu;  Rb_Rm_eu_plot(NaN_eu) = NaN;
+Rb_Rm_eu_mean = mean(Rb_Rm_eu_plot(~NaN_eu));
+
+figure('Name', 'EU Bond Premium', 'NumberTitle', 'off');
+plot(dates(datesperiod), zeros(1, numel(datesperiod)), ...
+    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
+h_mod = plot(dates(datesperiod), (BP_eu_t(datesperiod) - mean(BP_eu_t)) * abs_scale, ...
+    'LineWidth', 2.5, 'Color', 'r');
+h_dat = plot(dates(datesperiod), (Rb_Rm_eu_plot(datesperiod) - Rb_Rm_eu_mean) * abs_scale, ...
+    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color);
+grid on; axis tight;
+datetick('x', 'mmm-yy', 'keeplimits');
+formataxis(gca);
+regime_patches(dates, datesperiod, sigma_us_high_t);
+legend([h_mod h_dat], 'Model', 'Data', 'Box', 'off', 'Color', 'none');
+plot(dates(datesperiod), (BP_eu_t(datesperiod) - mean(BP_eu_t)) * abs_scale, ...
+    'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
+plot(dates(datesperiod), (Rb_Rm_eu_plot(datesperiod) - Rb_Rm_eu_mean) * abs_scale, ...
+    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color, 'HandleVisibility', 'off');
+title('EU Bond Premia (bps, demeaned)', 'Interpreter', 'latex', 'Fontsize', 16);
+if printit
+    exportgraphics(gcf, fullfile(foldername, 'F_BPeu_fit.pdf'), 'ContentType', 'vector');
+end
+
+%% ── 7. FIGURE (e)  –  US WINDOW / INTERBANK ─────────────────────────────
+%
+% DW_us_t, FF_us_t : model DW and FF volumes as fraction of checkable
+%                    deposits (units consistent with DW_n, FF_n).
+% DW_n, FF_n       : data series from load_data.m (LFX_data.mat):
+%                    DW_n = WLCFLPCL / TCDSL  (primary credit / deposits)
+%                    FF_n = FF volume / TCDSL  (fed funds / deposits)
+%                    Leading NaNs where series start after Jan 2001.
+% Multiply by 100 to display as percent of deposits.
+
+if ~exist('DW_n', 'var') || ~exist('FF_n', 'var')
+    error('plot_regimes: DW_n and FF_n not found in workspace. Check LFX_data.mat was loaded.');
+end
+
+%% ── 7a. FIGURE (e)  –  DW / DEPOSITS ────────────────────────────────────
+
+figure('Name', 'US Discount Window', 'NumberTitle', 'off');
+plot(dates(datesperiod), zeros(1, numel(datesperiod)), ...
+    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
+h_mod = plot(dates(datesperiod), (DW_us_t(datesperiod) - mean(DW_us_t(datesperiod))) * 100, ...
+    'LineWidth', 2.5, 'Color', 'r');
+h_dat = plot(dates(datesperiod), (DW_n(datesperiod) - nanmean(DW_n(datesperiod))) * 100, ...
+    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color);
+grid on; axis tight;
+datetick('x', 'mmm-yy', 'keeplimits');
+formataxis(gca);
+regime_patches(dates, datesperiod, sigma_us_high_t);
+legend([h_mod h_dat], 'Model', 'Data', 'Box', 'off', 'Color', 'none');
+plot(dates(datesperiod), (DW_us_t(datesperiod) - mean(DW_us_t(datesperiod))) * 100, ...
+    'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
+plot(dates(datesperiod), (DW_n(datesperiod) - nanmean(DW_n(datesperiod))) * 100, ...
+    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color, 'HandleVisibility', 'off');
+title('US Discount Window / Deposits (\%, demeaned)', 'Interpreter', 'latex', 'Fontsize', 16);
+if printit
+    exportgraphics(gcf, fullfile(foldername, 'F_DWus_fit.pdf'), 'ContentType', 'vector');
+end
+
+%% ── 7b. FIGURE (e2) –  FF / DEPOSITS ────────────────────────────────────
+
+figure('Name', 'US Fed Funds Volume', 'NumberTitle', 'off');
+plot(dates(datesperiod), zeros(1, numel(datesperiod)), ...
+    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
+h_mod = plot(dates(datesperiod), (FF_us_t(datesperiod) - mean(FF_us_t(datesperiod))) * 100, ...
+    'LineWidth', 2.5, 'Color', 'r');
+h_dat = plot(dates(datesperiod), (FF_n(datesperiod) - nanmean(FF_n(datesperiod))) * 100, ...
+    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color);
+grid on; axis tight;
+datetick('x', 'mmm-yy', 'keeplimits');
+formataxis(gca);
+regime_patches(dates, datesperiod, sigma_us_high_t);
+legend([h_mod h_dat], 'Model', 'Data', 'Box', 'off', 'Color', 'none');
+plot(dates(datesperiod), (FF_us_t(datesperiod) - mean(FF_us_t(datesperiod))) * 100, ...
+    'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
+plot(dates(datesperiod), (FF_n(datesperiod) - nanmean(FF_n(datesperiod))) * 100, ...
+    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color, 'HandleVisibility', 'off');
+title('US Interbank Volume / Deposits (\%, demeaned)', 'Interpreter', 'latex', 'Fontsize', 16);
+if printit
+    exportgraphics(gcf, fullfile(foldername, 'F_FFus_fit.pdf'), 'ContentType', 'vector');
+end
+
+%% ── 8. FIGURE (f)  –  DISPERSION IN US INTERBANK RATES ──────────────────
+
+figure('Name', 'US Interbank Dispersion', 'NumberTitle', 'off');
+plot(dates(datesperiod), mean(Chi_D_US(datesperiod)) * abs_scale * ones(1, numel(datesperiod)), ...
+    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
+plot(dates(datesperiod), Chi_D_US(datesperiod) * abs_scale, ...
+    'LineWidth', 2.5, 'Color', data_color);
+grid on; axis tight;
+datetick('x', 'mmm-yy', 'keeplimits');
+formataxis(gca);
+regime_patches(dates, datesperiod, sigma_us_high_t);
+plot(dates(datesperiod), Chi_D_US(datesperiod) * abs_scale, ...
+    'LineWidth', 2.5, 'Color', data_color, 'HandleVisibility', 'off');
+title('Dispersion in US Interbank Rates (bps)', 'Interpreter', 'latex', 'Fontsize', 16);
+if printit
+    exportgraphics(gcf, fullfile(foldername, 'F_IBdispersion.pdf'), 'ContentType', 'vector');
+end
+
+%% ── 9. FIGURE (tab-estimated) – FILTERED PROBABILITIES ──────────────────
+
+figure('Name', 'Filtered Regime Probabilities', 'NumberTitle', 'off');
+plot(dates(datesperiod), 0.5 * ones(1, numel(datesperiod)), ...
+    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
+plot(dates(datesperiod), sigma_us_stateprob(datesperiod), ...
+    'LineWidth', 2.5, 'Color', 'r');
+grid on; axis tight; ylim([0 1]);
+datetick('x', 'mmm-yy', 'keeplimits');
+formataxis(gca);
+regime_patches(dates, datesperiod, sigma_us_high_t);
+plot(dates(datesperiod), sigma_us_stateprob(datesperiod), ...
+    'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
+title('Prob. Low Funding Risk State', 'Interpreter', 'latex', 'Fontsize', 16);
+if printit
+    exportgraphics(gcf, fullfile(foldername, 'F_sigmaus_states.pdf'), 'ContentType', 'vector');
+end
+
+%% ── 10. REGIME MOMENTS (console) ────────────────────────────────────────
+
+index_scr = logical(sigma_us_high_t(datesperiod));
+index_nor = ~index_scr;
+
+fprintf('\n=== Conditional Moments by Regime ===\n');
+fprintf('                      Scrambling      Normal\n');
+fprintf('E[sigma_us]           %9.4f   %9.4f\n', ...
+    mean(sigma_us_t(sigma_us_high_t(1:end-1))), ...
+    mean(sigma_us_t(~sigma_us_high_t(1:end-1))));
+fprintf('E[BP_us]   (bps)      %9.2f   %9.2f\n', ...
+    mean(BP_us_t(index_scr))  * abs_scale, mean(BP_us_t(index_nor))  * abs_scale);
+fprintf('E[TED_us]  (bps)      %9.2f   %9.2f\n', ...
+    mean(TED_us_t(index_scr)) * abs_scale, mean(TED_us_t(index_nor)) * abs_scale);
+fprintf('E[CIP]     (bps)      %9.2f   %9.2f\n', ...
+    mean(CIP_t(index_scr))    * abs_scale, mean(CIP_t(index_nor))    * abs_scale);
+fprintf('E[DW_us]   (%% dep.)  %9.4f   %9.4f\n', ...
+    mean(DW_us_t(index_scr))  * 100,       mean(DW_us_t(index_nor))  * 100);
+fprintf('E[FF_us]   (%% dep.)  %9.4f   %9.4f\n', ...
+    mean(FF_us_t(index_scr))  * 100,       mean(FF_us_t(index_nor))  * 100);
+fprintf('Frac. scrambling:     %.1f%%\n', 100 * mean(index_scr));
+
+fprintf('\nplot_regimes.m complete. 7 figures saved to:\n  %s\n', foldername);
