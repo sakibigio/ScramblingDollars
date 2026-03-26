@@ -39,12 +39,91 @@ plot!(p1, df.sigma_eu, label="σ_eu")
 savefig(p1, "data/sigma_raw.png")
 
 ## =========================================================================
+##  Robust estimation: retry with different seeds, reject degenerate runs
+## =========================================================================
+
+function is_degenerate(model; min_sigma=0.01, min_prob_balance=0.02)
+    # Check if either regime σ is near zero
+    if minimum(model.σ) < min_sigma
+        return true, "min σ = $(minimum(model.σ)) < $min_sigma"
+    end
+    # Check if filtered probs put all mass on one state
+    try
+        fp = filtered_probs(model)
+        fp_clean = fp[.!any(isnan.(fp), dims=2)[:], :]
+        if size(fp_clean, 1) < size(fp, 1) * 0.5
+            return true, "$(size(fp,1) - size(fp_clean,1)) NaN rows in filtered probs"
+        end
+        mean_p1 = mean(fp_clean[:,1])
+        if mean_p1 < min_prob_balance || mean_p1 > (1 - min_prob_balance)
+            return true, "mean(prob_state1) = $(round(mean_p1, digits=4)) — one state never visited"
+        end
+    catch e
+        return true, "filtered_probs error: $e"
+    end
+    return false, ""
+end
+
+function robust_msmodel(y, n_states, exog_sv; label="", max_retries=20, min_sigma=0.01)
+    best_model = nothing
+    best_ll = -Inf
+
+    for i in 0:max_retries
+        if i > 0
+            Random.seed!(i)
+        end
+        try
+            m = MSModel(y, n_states, exog_switching_vars = exog_sv)
+            ll = m.Likelihood
+
+            if isnan(ll)
+                println("  $label seed $i: rejected (loglik=NaN)")
+                continue
+            end
+
+            degen, reason = is_degenerate(m; min_sigma=min_sigma)
+            if degen
+                println("  $label seed $i: degenerate ($reason), loglik=$ll")
+                continue
+            end
+
+            println("  $label seed $i: loglik=$(round(ll, digits=2)), σ=$(round.(m.σ, digits=4))")
+            if ll > best_ll
+                best_ll = ll
+                best_model = m
+            end
+        catch e
+            println("  $label seed $i: error — $e")
+        end
+    end
+
+    if best_model === nothing
+        println("  $label: all $(max_retries+1) attempts degenerate or failed")
+        return nothing
+    end
+
+    # Report final solution
+    println("\n  $label BEST: loglik=$(round(best_ll, digits=2))")
+    println("    σ = $(round.(best_model.σ, digits=4))")
+    println("    β₁ = $(round.(best_model.β[1], digits=4))")
+    println("    β₂ = $(round.(best_model.β[2], digits=4))")
+    fp = filtered_probs(best_model)
+    fp_clean = fp[.!any(isnan.(fp), dims=2)[:], :]
+    println("    mean(prob_state1) = $(round(mean(fp_clean[:,1]), digits=3))")
+    println("    non-NaN filtered prob rows: $(size(fp_clean,1)) / $(size(fp,1))")
+
+    return best_model
+end
+
+## =========================================================================
 ##  US Markov Switching Model
 ## =========================================================================
 println("\n=== US Markov Switching Model ===")
 
-model_us = MSModel(df.lsigma_us, 2, 
-                   exog_switching_vars = df.lag_lsigma_us)
+model_us = robust_msmodel(df.lsigma_us, 2, df.lag_lsigma_us, label="US")
+if model_us === nothing
+    error("US: robust estimation failed — no non-degenerate solution found")
+end
 
 try
     summary_msm(model_us)
@@ -127,56 +206,96 @@ CSV.write("data/MS_sigma_us_counterfactuals.csv", df_us_filtered)
 ## =========================================================================
 println("\n=== EU Markov Switching Model ===")
 
-model_eu = MSModel(df.lsigma_eu, 2, 
-                   exog_switching_vars = df.lag_lsigma_eu)
+model_eu = robust_msmodel(df.lsigma_eu, 2, df.lag_lsigma_eu,
+                          label="EU", max_retries=20, min_sigma=0.001)
 
-try
-    summary_msm(model_eu)
-catch e
-    println("Warning: Could not display EU model summary (std errors singular)")
-    println("  Coefficients β: ", model_eu.β)
-    println("  Residual σ:     ", model_eu.σ)
+eu_fallback = model_eu === nothing
+
+if eu_fallback
+    # Single-regime AR(1) fallback — EU series too smooth for two regimes
+    println("WARNING: EU two-regime estimation failed. Falling back to single-regime AR(1).")
+else
+    try
+        summary_msm(model_eu)
+    catch e
+        println("Warning: Could not display EU model summary (std errors singular)")
+        println("  Coefficients β: ", model_eu.β)
+        println("  Residual σ:     ", model_eu.σ)
+    end
 end
 
-# Filtered probabilities
-probs_eu = filtered_probs(model_eu)
+lsigma_eu = df.lsigma_eu
+
+if eu_fallback
+    # Single-regime AR(1) fallback
+    X_eu = [ones(N-1) lsigma_eu[1:end-1]]
+    Y_eu = lsigma_eu[2:end]
+    ar1_coefs = X_eu \ Y_eu
+    intercept_eu = ar1_coefs[1]
+    phi_eu = ar1_coefs[2]
+    sigma_resid_eu_r1 = std(Y_eu - X_eu * ar1_coefs)
+    sigma_resid_eu_r2 = sigma_resid_eu_r1
+    intercept_eu_r2 = intercept_eu
+    phi_eu_r2 = phi_eu
+    P_eu_mat = [0.99 0.01; 0.01 0.99]
+    probs_eu = hcat(fill(0.5, N), fill(0.5, N))
+    state2_prob_eu = probs_eu[:,2]
+
+    println("  AR(1) intercept: ", intercept_eu)
+    println("  AR(1) phi:       ", phi_eu)
+    println("  Residual σ:      ", sigma_resid_eu_r1)
+else
+    # Filtered probabilities
+    probs_eu = filtered_probs(model_eu)
+
+    # Counterfactuals — identify low-volatility regime
+    if mean(probs_eu[:,1]) > mean(probs_eu[:,2])
+        intercept_eu = model_eu.β[1][1]
+        phi_eu = model_eu.β[1][2]
+        sigma_resid_eu_r1 = model_eu.σ[1]
+        sigma_resid_eu_r2 = model_eu.σ[2]
+        intercept_eu_r2 = model_eu.β[2][1]
+        phi_eu_r2 = model_eu.β[2][2]
+        state2_prob_eu = probs_eu[:,2]
+    else
+        intercept_eu = model_eu.β[2][1]
+        phi_eu = model_eu.β[2][2]
+        sigma_resid_eu_r1 = model_eu.σ[2]
+        sigma_resid_eu_r2 = model_eu.σ[1]
+        intercept_eu_r2 = model_eu.β[1][1]
+        phi_eu_r2 = model_eu.β[1][2]
+        state2_prob_eu = probs_eu[:,1]
+    end
+end
+
+# Save filtered probabilities
 p4 = plot(probs_eu[:,1], label="State 1", title="EU Regime Probabilities")
 plot!(p4, probs_eu[:,2], label="State 2")
 savefig(p4, "data/MS_sigma_eu_probs.png")
 
-# Save probabilities
 df_probs_eu = DataFrame(prob_state1 = probs_eu[:,1], prob_state2 = probs_eu[:,2])
 CSV.write("data/MS_sigma_eu_prob.csv", df_probs_eu)
 
 # Simulate
-simul_eu = generate_msm(model_eu, 10000)
-sigma_eu_sim = simul_eu[1]
-sigma_eu_state_sim = simul_eu[2]
+if !eu_fallback
+    simul_eu = generate_msm(model_eu, 10000)
+    sigma_eu_sim = simul_eu[1]
+    sigma_eu_state_sim = simul_eu[2]
+else
+    Random.seed!(42)
+    sigma_eu_sim = zeros(10000)
+    sigma_eu_state_sim = ones(Int, 10000)
+    sigma_eu_sim[1] = mean(lsigma_eu)
+    for t in 2:10000
+        sigma_eu_sim[t] = intercept_eu + phi_eu * sigma_eu_sim[t-1] + sigma_resid_eu_r1 * randn()
+    end
+end
 aux_eu = DataFrame(sigma_eu_sim = sigma_eu_sim, state_eu_sim = sigma_eu_state_sim)
 CSV.write("data/MS_sigma_eu_simul.csv", aux_eu)
 
-# Counterfactuals
-if mean(probs_eu[:,1]) > mean(probs_eu[:,2])
-    intercept_eu = model_eu.β[1][1]
-    phi_eu = model_eu.β[1][2]
-    sigma_resid_eu_r1 = model_eu.σ[1]
-    sigma_resid_eu_r2 = model_eu.σ[2]
-    intercept_eu_r2 = model_eu.β[2][1]
-    phi_eu_r2 = model_eu.β[2][2]
-    state2_prob_eu = probs_eu[:,2]
-else
-    intercept_eu = model_eu.β[2][1]
-    phi_eu = model_eu.β[2][2]
-    sigma_resid_eu_r1 = model_eu.σ[2]
-    sigma_resid_eu_r2 = model_eu.σ[1]
-    intercept_eu_r2 = model_eu.β[1][1]
-    phi_eu_r2 = model_eu.β[1][2]
-    state2_prob_eu = probs_eu[:,1]
-end
-
 println("Estimated AR(1) coefficient (phi_eu): ", phi_eu)
 
-lsigma_eu = df.lsigma_eu
+# Counterfactual
 lsigma_eu_filtered = zeros(N)
 
 for t in 1:N
@@ -204,10 +323,6 @@ CSV.write("data/MS_sigma_eu_counterfactuals.csv", df_eu_filtered)
 ##  Export estimated parameters for MATLAB (setup_markov.m)
 ## =========================================================================
 println("\n=== Exporting Parameters ===")
-
-# Transition matrix
-P_us = model_us.raw_params
-P_eu = model_eu.raw_params
 
 # Extract transition probabilities from model
 # Try multiple approaches since MarSwitching API varies by version
@@ -239,28 +354,15 @@ end
 P_us_mat = get_transition_matrix(model_us)
 println("US Transition matrix: ", P_us_mat)
 
-P_eu_mat = get_transition_matrix(model_eu)
-println("EU Transition matrix: ", P_eu_mat)
+if !eu_fallback
+    P_eu_mat = get_transition_matrix(model_eu)
+    println("EU Transition matrix: ", P_eu_mat)
+end
+# (If eu_fallback, P_eu_mat was already set to [0.99 0.01; 0.01 0.99] above)
 
 # Unconditional means: mu = intercept / (1 - phi)
 mu_us_r1 = intercept_us / (1 - phi_us)
 mu_us_r2 = intercept_us_r2 / (1 - phi_us_r2)
-
-# Check if EU model is degenerate (both regimes identical)
-eu_degenerate = abs(model_eu.σ[1] - model_eu.σ[2]) < 1e-6
-if eu_degenerate
-    println("WARNING: EU model is degenerate (regimes identical). Using single-regime AR(1).")
-    # Use regime 1 params for both
-    mu_eu_r1 = model_eu.β[1][1] / (1 - model_eu.β[1][2])
-    mu_eu_r2 = mu_eu_r1
-    phi_eu_r1_val = model_eu.β[1][2]
-    phi_eu_r2_val = phi_eu_r1_val
-    sigma_eu_r1_val = model_eu.σ[1]
-    sigma_eu_r2_val = sigma_eu_r1_val
-    # Essentially one regime
-    P_eu_mat = [0.99 0.01; 0.01 0.99]
-    println("  Using single-regime parameters with near-identity transition matrix")
-end
 
 println("P_us_mat BEFORE swap: ", P_us_mat)
 println("Row sums: ", sum(P_us_mat, dims=2))
