@@ -64,23 +64,46 @@ else
     P=[0.984 0.016; 0.061 0.939];
 end
 
-% Tauchen grid width (discretization choice, not estimated)
-% Adaptive grid width based on unconditional standard deviation of each regime
-sigma_uncond_r1 = Sigma_sigma_us_r1 / sqrt(max(1e-6, 1 - rho_sigma_us_r1^2));
-sigma_uncond_r2 = Sigma_sigma_us_r2 / sqrt(max(1e-6, 1 - rho_sigma_us_r2^2));
-m_sigma_us_r1 = max(3.0, 3.0 * sigma_uncond_r1 / Sigma_sigma_us_r1);
-m_sigma_us_r2 = max(3.0, 3.0 * sigma_uncond_r2 / Sigma_sigma_us_r2);
+% Common grid: build one set of nodes, then compute transition probs per regime
+% Grid spans the wider unconditional distribution of the two regimes
+sigma_unc_r1 = Sigma_sigma_us_r1 / sqrt(max(1e-6, 1 - rho_sigma_us_r1^2));
+sigma_unc_r2 = Sigma_sigma_us_r2 / sqrt(max(1e-6, 1 - rho_sigma_us_r2^2));
+mu_common    = (mu_sigma_us_r1 + mu_sigma_us_r2) / 2;
+sigma_unc_common = max(sigma_unc_r1, sigma_unc_r2);
+m_common = 3.0;
 
-% Construction of process
-Tauchen_method=1; Rouwenhorst_method=0;
-if Tauchen_method==1
-    [Z_sigma_us_r1,Zprob_sigma_us_r1] = tauchen(N_sigma_us/2,mu_sigma_us_r1,rho_sigma_us_r1,Sigma_sigma_us_r1,m_sigma_us_r1);
-    [Z_sigma_us_r2,Zprob_sigma_us_r2] = tauchen(N_sigma_us/2,mu_sigma_us_r2,rho_sigma_us_r2,Sigma_sigma_us_r2,m_sigma_us_r2);
+% Use tauchen with common parameters to get grid nodes
+% rho_common=0 and sigma_common=sigma_unc_common so that
+% Z(N) = m * sqrt(sigma^2/(1-0^2)) = m * sigma_unc_common
+[Z_common, ~] = tauchen(N_sigma_us/2, mu_common, 0, sigma_unc_common, m_common);
 
-elseif Rouwenhorst_method==1
-    [Z_sigma_us_r1,Zprob_sigma_us_r1] =discretizeAR1_Rouwenhorst(mu_sigma_us_r1*(1-rho_sigma_us_r1),rho_sigma_us_r1,Sigma_sigma_us_r1,N_sigma_us/2);
-    [Z_sigma_us_r2,Zprob_sigma_us_r2] =discretizeAR1_Rouwenhorst(mu_sigma_us_r2*(1-rho_sigma_us_r2),rho_sigma_us_r2,Sigma_sigma_us_r2,N_sigma_us/2);
+% Now compute transition probabilities on this common grid for each regime
+Ng = N_sigma_us/2;
+a_r1 = (1 - rho_sigma_us_r1) * mu_sigma_us_r1;
+a_r2 = (1 - rho_sigma_us_r2) * mu_sigma_us_r2;
+zstep = Z_common(2) - Z_common(1);
+
+Zprob_sigma_us_r1 = zeros(Ng, Ng);
+Zprob_sigma_us_r2 = zeros(Ng, Ng);
+for j = 1:Ng
+    for k = 1:Ng
+        if k == 1
+            Zprob_sigma_us_r1(j,k) = 0.5*erfc(-(Z_common(1) - a_r1 - rho_sigma_us_r1*Z_common(j) + zstep/2) / (Sigma_sigma_us_r1*sqrt(2)));
+            Zprob_sigma_us_r2(j,k) = 0.5*erfc(-(Z_common(1) - a_r2 - rho_sigma_us_r2*Z_common(j) + zstep/2) / (Sigma_sigma_us_r2*sqrt(2)));
+        elseif k == Ng
+            Zprob_sigma_us_r1(j,k) = 1 - 0.5*erfc(-(Z_common(Ng) - a_r1 - rho_sigma_us_r1*Z_common(j) - zstep/2) / (Sigma_sigma_us_r1*sqrt(2)));
+            Zprob_sigma_us_r2(j,k) = 1 - 0.5*erfc(-(Z_common(Ng) - a_r2 - rho_sigma_us_r2*Z_common(j) - zstep/2) / (Sigma_sigma_us_r2*sqrt(2)));
+        else
+            Zprob_sigma_us_r1(j,k) = 0.5*erfc(-(Z_common(k) - a_r1 - rho_sigma_us_r1*Z_common(j) + zstep/2) / (Sigma_sigma_us_r1*sqrt(2))) ...
+                                    - 0.5*erfc(-(Z_common(k) - a_r1 - rho_sigma_us_r1*Z_common(j) - zstep/2) / (Sigma_sigma_us_r1*sqrt(2)));
+            Zprob_sigma_us_r2(j,k) = 0.5*erfc(-(Z_common(k) - a_r2 - rho_sigma_us_r2*Z_common(j) + zstep/2) / (Sigma_sigma_us_r2*sqrt(2))) ...
+                                    - 0.5*erfc(-(Z_common(k) - a_r2 - rho_sigma_us_r2*Z_common(j) - zstep/2) / (Sigma_sigma_us_r2*sqrt(2)));
+        end
+    end
 end
+Z_sigma_us_r1 = Z_common;
+Z_sigma_us_r2 = Z_common;
+
 [eig_vecs1,eigs1]=eig(Zprob_sigma_us_r1');
 invp1=eig_vecs1(:,1)/(sum(eig_vecs1(:,1)));
 [eig_vecs2,eigs2]=eig(Zprob_sigma_us_r2');
@@ -95,11 +118,9 @@ scatter(Z_sigma_us_r1,Z_sigma_us_r1*0+1,'Filled','Color',[0.1 0.5 0.8]); hold on
 scatter(Z_sigma_us_r2,Z_sigma_us_r2*0+1.1,'Filled','Color',[0.8 0.2 0.8]); grid on;
 legend('low','high');
 
-% Index Key - Find nearest location for construction of process:
-for ii=1:N_sigma_us/2
-    [~,index_r1_to_r2(ii)]=min(abs(Z_sigma_us_r2-Z_sigma_us_r1(ii)));
-    [~,index_r2_to_r1(ii)]=min(abs(Z_sigma_us_r1-Z_sigma_us_r2(ii)));
-end
+% Grids are identical (same mu_common, baseSigma_common), so identity mapping
+index_r1_to_r2 = (1:N_sigma_us/2)';
+index_r2_to_r1 = (1:N_sigma_us/2)';
 
 % Single Chain
 Z_sigma_us=[Z_sigma_us_r1; Z_sigma_us_r2];
