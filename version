@@ -1,0 +1,27 @@
+]
+
+
+]
+q
+esc
+
+
+
+
+
+
+[A[A[A[A[A]]]
+[Z
+
+esc
+
+
+]
+\
+'
+^^^
+% Check what's in calibration.mat
+cd '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Scrabmling for Dollars/Code 2025 ScramblingDollars/Filtering/data'
+whos -file calibration.mat
+q
+\\

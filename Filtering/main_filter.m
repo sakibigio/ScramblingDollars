@@ -6,7 +6,7 @@
 
 %% Setup - Preserve matching_type through clear
 if ~exist('matching_type', 'var')
-    matching_type = 0;  % 0 = Leontief, 1 = Cobb-Douglas (default)
+    matching_type = 1;  % 0 = Leontief, 1 = Cobb-Douglas (default)
 end
 save('temp_matching_type.mat', 'matching_type');
 
@@ -31,10 +31,10 @@ plotdata = 0;
 printver = 0;
 
 % Plotting flags (set to 1 to enable)
-do_plot_baseline    = 1;      % Main filter results
-do_plot_diagnostics = 0;   % Diagnostic plots
-do_counterfactual   = 1;     % Counterfactual analysis (not implemented)
-do_sensitivity      = 0;        % Sensitivity analysis (not implemented)
+do_plot_baseline    = 1;  % Main filter results
+do_plot_diagnostics = 0;  % Diagnostic plots
+do_counterfactual   = 1;  % Counterfactual analysis (not implemented)
+do_sensitivity      = 0;  % Sensitivity analysis (not implemented)
 plot_baseline_curr  = 0;  % Baseline plots for other currencies
 
 % Run markov_estimation.jl automatically after filtering
