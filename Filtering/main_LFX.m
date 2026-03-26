@@ -31,6 +31,12 @@ clear; close all;
 load('temp_matching_type.mat');
 delete('temp_matching_type.mat');
 
+if matching_type == 0
+    mt_suffix = '_l';
+else
+    mt_suffix = '_cd';
+end
+
 addpath('functions');
 addpath('functions/chi');
 addpath('utils');

@@ -105,7 +105,7 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_mu_us.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_mu_us' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','EU Liquidity Ratio','NumberTitle','off'); % Liquidity Ratios
@@ -144,7 +144,61 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_mu.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_mu' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
+end
+
+%% FF Volume (% of deposits)
+figure('Name','FF Volume','NumberTitle','off');
+splot1(sigma_us_vec(index1), FF_us_vec(index1)*100); hold on;
+splot2(sigma_us_vec(index2), FF_us_vec(index2)*100);
+xlim(limsigmas);
+xlabel(x_lab,'interpreter','latex');
+ylabel('\%','interpreter','latex');
+formataxis(gca);
+grid on;
+ax = gca;
+desiredNumXTicks = 3;
+xLimits = get(ax, 'XLim');
+customXTicks = linspace(xLimits(1), xLimits(2), desiredNumXTicks);
+set(ax, 'XTick', customXTicks);
+yLimits = get(ax, 'YLim');
+customYTicks = linspace(yLimits(1), yLimits(2), desiredNumXTicks);
+set(ax, 'YTick', customYTicks);
+desiredDecimalPlaces = 1;
+xtickformat(ax, sprintf('%%.%df', desiredDecimalPlaces));
+grid on;
+set(gcf, 'PaperUnits', 'normalized');
+orient landscape;
+set(gcf, 'PaperPosition', [0 0 1 1]);
+if printit==1
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_FF' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
+end
+
+%% DW Volume (% of deposits)
+figure('Name','DW Volume','NumberTitle','off');
+splot1(sigma_us_vec(index1), DW_us_vec(index1)*100); hold on;
+splot2(sigma_us_vec(index2), DW_us_vec(index2)*100);
+xlim(limsigmas);
+xlabel(x_lab,'interpreter','latex');
+ylabel('\%','interpreter','latex');
+formataxis(gca);
+grid on;
+ax = gca;
+desiredNumXTicks = 3;
+xLimits = get(ax, 'XLim');
+customXTicks = linspace(xLimits(1), xLimits(2), desiredNumXTicks);
+set(ax, 'XTick', customXTicks);
+yLimits = get(ax, 'YLim');
+customYTicks = linspace(yLimits(1), yLimits(2), desiredNumXTicks);
+set(ax, 'YTick', customYTicks);
+desiredDecimalPlaces = 2;
+xtickformat(ax, sprintf('%%.%df', desiredDecimalPlaces));
+grid on;
+set(gcf, 'PaperUnits', 'normalized');
+orient landscape;
+set(gcf, 'PaperPosition', [0 0 1 1]);
+if printit==1
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_DW' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 % figure('Name','Real Rates Dollar','NumberTitle','off'); % Endogenous policy rates
@@ -219,7 +273,7 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_Rm_us.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_Rm_us' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','Dollar Inflation','NumberTitle','off'); % Endogenous policy rates
@@ -258,7 +312,7 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_Rm_us.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_Rm_us' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','Real Euro Rate','NumberTitle','off'); % Endogenous policy rates
@@ -298,7 +352,7 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_Rm_eu.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_Rm_eu' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','all rates','NumberTitle','off'); % Endogenous policy rates
@@ -368,7 +422,7 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_e.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_e' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 area(sigma_us_vec(index1),yLimits(1)+(yLimits(2)-yLimits(1))*invp1/max([invp1; invp2]),'FaceAlpha',0.5,'FaceColor',color_base, 'DisplayName', 'Normal Regime'); hold on;
 area(sigma_us_vec(index2),yLimits(1)+(yLimits(2)-yLimits(1))*invp2/max([invp1; invp2]),'FaceAlpha',0.5,'FaceColor',color_base2); hold on;
@@ -378,7 +432,7 @@ set(gcf, 'PaperUnits', 'normalized');
 orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_FX.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_FX' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','Invariants','NumberTitle','off');
@@ -407,7 +461,7 @@ if printit==1
     set(gcf, 'PaperUnits', 'normalized');
     orient landscape;
     set(gcf, 'PaperPosition', [0 0 1 1]);  
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_invariants.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_invariants' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 % figure('Name','Deposit Rates','NumberTitle','off');
@@ -481,7 +535,7 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_BP.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_BP' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','Real Rate Differential','NumberTitle','off')
@@ -520,7 +574,7 @@ if printit==1
     orient landscape;
     set(gcf, 'PaperPosition', [0 0 1 1]);  
     %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_UIP.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_UIP' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','Real Rate Differential shade','NumberTitle','off')
@@ -623,7 +677,7 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_e_scramble.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_e_scramble' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 area(sigma_us_vec(index1),yLimits(1)+(yLimits(2)-yLimits(1))*invp1/max([invp1; invp2]),'FaceAlpha',0.5,'FaceColor',color_base, 'DisplayName', 'Normal Regime'); hold on;
 area(sigma_us_vec(index2),yLimits(1)+(yLimits(2)-yLimits(1))*invp2/max([invp1; invp2]),'FaceAlpha',0.5,'FaceColor',color_base2); hold on;
@@ -632,7 +686,7 @@ set(gcf, 'PaperUnits', 'normalized');
 orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_FX_scramble.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_FX_scramble' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','Real Rate Differential','NumberTitle','off')
@@ -672,7 +726,7 @@ if printit==1
     orient landscape;
     set(gcf, 'PaperPosition', [0 0 1 1]);  
     %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_UIP_scramble.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_UIP_scramble' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 figure('Name','US Liquidity Ratio','NumberTitle','off'); % Liquidity Ratios
@@ -710,7 +764,7 @@ orient landscape;
 set(gcf, 'PaperPosition', [0 0 1 1]);  
 %  print(gcf,'-dpdf',['raw_data_' num2str(printver)]);
 if printit==1
-    exportgraphics(gcf, fullfile(foldername, 'nlmod_mu_us_scramble.pdf'), 'ContentType', 'vector', 'Resolution', 1600);
+    exportgraphics(gcf, fullfile(foldername, ['nlmod_mu_us_scramble' mt_suffix '.pdf']), 'ContentType', 'vector', 'Resolution', 1600);
 end
 
 

@@ -88,7 +88,7 @@ regime_patches(dates, datesperiod, sigma_us_high_t);
 plot(dates(datesperiod), sigma_us_stateprob(datesperiod), 'LineWidth', 2, 'Color', 'r'); 
 title('Prob. Low Funding Risk State', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_sigmaus_states.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_sigmaus_states' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ========================================================================
@@ -108,7 +108,7 @@ xtickformat('MMM-yy');
 formataxis(gca);
 title('$\sigma$ Estimates', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_sigmauseu.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_sigmauseu' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ========================================================================
@@ -128,7 +128,7 @@ plot(dates(datesperiod), TED_eu_t(datesperiod)*abs_scale, 'LineWidth', 3, 'LineS
 legend('', 'US', 'EU', 'box', 'off', 'color', 'none');
 title('TED Spreads (bps)', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_Tedtargets.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_Tedtargets' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ========================================================================
@@ -153,7 +153,7 @@ xtickformat('MMM-yy');
 formataxis(gca);
 title('US Bond Premium (bps, demeaned)', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_BPus_fit.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_BPus_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 % EU Bond Premium
@@ -174,7 +174,7 @@ xtickformat('MMM-yy');
 formataxis(gca);
 title('EU Bond Premium (bps, demeaned)', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_BPeu_fit.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_BPeu_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ========================================================================
@@ -191,7 +191,7 @@ regime_patches(dates, datesperiod, sigma_us_high_t);
 plot(dates(datesperiod), cip(datesperiod)*abs_scale, 'LineWidth', 3, 'LineStyle', '-', 'Color', data_color);
 title('CIP Deviation (bps)', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportfig(gcf, [foldername 'F_CIP'], 'color', 'cmyk', 'resolution', 1600);
+    exportfig(gcf, [foldername 'F_CIP' mt_suffix], 'color', 'cmyk', 'resolution', 1600);
 end
 
 %% ========================================================================
@@ -208,7 +208,7 @@ regime_patches(dates, datesperiod, sigma_us_high_t);
 plot(dates(datesperiod), Chi_D_US(datesperiod)*abs_scale, 'LineWidth', 2, 'LineStyle', '-', 'Color', data_color);
 title('US Interbank Dispersion (bps)', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_IBdispersion.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_IBdispersion' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ========================================================================
@@ -252,7 +252,7 @@ formataxis(gca);
 legend('Model', 'Data', 'box', 'off', 'color', 'none');
 title('DW Borrowing / Reserves (normalized)', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_DWus_fit.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_DWus_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ========================================================================
@@ -289,7 +289,7 @@ for j = 1:length(curlist)
     title(conlist{j}, 'interpreter', 'latex', 'Fontsize', 15);
 end
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_CIP_all.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_CIP_all' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ========================================================================
@@ -329,7 +329,7 @@ for j = 1:length(curlist)
     title([conlist{j} '/USD'], 'interpreter', 'latex', 'Fontsize', 15);
 end
 if printit == 1
-    exportgraphics(gcf, fullfile(foldername, 'F_devaluation_all.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_devaluation_all' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ========================================================================
@@ -393,7 +393,7 @@ fprintf('Deval mean (bps):   %6.1f    %6.1f     %6.1f\n', E_dev_data, E_dev_data
 
 % Save to LaTeX (if printing)
 if printit == 1
-    filename = fullfile(foldername, 'Data_CIP_Moments.tex');
+    filename = fullfile(foldername, ['Data_CIP_Moments' mt_suffix '.tex']);
     fid = fopen(filename, 'wt');
     fprintf(fid, 'CIP (data) & %.1f & %.2f & %.1f & %.1f & \\{ %.2f, %.2f \\} & %.1f \\\\ \n', ...
         E_cip_data, rho_cip_data, std_cip_data, E_cip_data_r2-E_cip_data_r1, ...

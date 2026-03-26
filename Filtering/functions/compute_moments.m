@@ -91,7 +91,7 @@ Dev_r1_to_r2=invp1'*(Jump_mat(1:N_sigma_us/2,N_sigma_us/2+1:end))/P(1,2)*ones(N_
 %Dev_test=invp1'*(Jump_test(1:N_sigma_us/2,N_sigma_us/2+1:end))/P(1,2)*ones(N_sigma_us/2,1);
 Dev_r2_to_r1=invp2'*(Jump_mat(N_sigma_us/2+1:end,1:N_sigma_us/2))/P(2,1)*ones(N_sigma_us/2,1);
 
-filename = fullfile(foldername, 'Mod_SwitchDev_Moments.tex');
+filename = fullfile(foldername, ['Mod_SwitchDev_Moments' mt_suffix '.tex']);
 fid = fopen(filename, 'wt');
 % devswith_moments = {...
     %'FX', 1, rho_e_sim, std_e/E_e, (E_e_r2./E_e_r1-1)*10000, rho_e_sim_r2, rho_e_sim_r1, (std_e_r2./std_e_r1); 
@@ -202,7 +202,7 @@ rho_ff_sim_r2=aux(2);
 % fprintf(fid, '\\multicolumn{7}{c}{\\textbf{Model Moments}} \\\\\n');
 
 % Replace the following with your actual model moments
-filename = fullfile(foldername, 'Mod_Moments.tex');
+filename = fullfile(foldername, ['Mod_Moments' mt_suffix '.tex']);
 fid = fopen(filename, 'wt');
 model_moments = {'FX', 1, rho_e_sim, std_e/E_e, (E_e_r2./E_e_r1-1)*10000, rho_e_sim_r2, rho_e_sim_r1, (std_e_r2./std_e_r1); 
                  '$\Delta$ FX', E_pi_ret_us, rho_pi_us_sim, std_pi_ret_us, E_pi_ret_us_r2-E_pi_ret_us_r1, rho_e_sim_r2, rho_e_sim_r1, (std_pi_ret_us_r2./std_pi_ret_us_r1);
@@ -222,7 +222,7 @@ end
 
 fclose(fid);
 
-filename = fullfile(foldername, 'Mod_CIP_Moments.tex');
+filename = fullfile(foldername, ['Mod_CIP_Moments' mt_suffix '.tex']);
 fid = fopen(filename, 'wt');
 model_moments = {...
     %'FX', 1, rho_e_sim, std_e/E_e, (E_e_r2./E_e_r1-1)*10000, rho_e_sim_r2, rho_e_sim_r1, (std_e_r2./std_e_r1); 

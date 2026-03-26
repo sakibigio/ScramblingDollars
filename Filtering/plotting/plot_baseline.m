@@ -60,7 +60,7 @@ datetick('x', 'mmm-yy', 'keeplimits');
 formataxis(gca);
 title('Estimated $\sigma^*$ (US TED)', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportfig(gcf, [foldername 'F_sigmaus'], 'color', 'cmyk', 'resolution', 1600);
+    exportfig(gcf, [foldername 'F_sigmaus' mt_suffix], 'color', 'cmyk', 'resolution', 1600);
 end
 
 %% Figure 2: Sigma EU (TED target)
@@ -73,7 +73,7 @@ datetick('x', 'mmm-yy', 'keeplimits');
 formataxis(gca);
 title('Estimated $\sigma$ (EU TED)', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportfig(gcf, [foldername 'F_sigmaeu'], 'color', 'cmyk', 'resolution', 1600);
+    exportfig(gcf, [foldername 'F_sigmaeu' mt_suffix], 'color', 'cmyk', 'resolution', 1600);
 end
 
 %% Figure 3: Log Sigma Comparison (US vs EU)
@@ -88,7 +88,7 @@ formataxis(gca);
 legend('average', 'US', 'EU', 'Location', 'best');
 title('Log $\sigma$ Comparison', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportfig(gcf, [foldername 'F_useu_logcomp'], 'color', 'cmyk', 'resolution', 1600);
+    exportfig(gcf, [foldername 'F_useu_logcomp' mt_suffix], 'color', 'cmyk', 'resolution', 1600);
 end
 
 %% Figure 4: Sigma Comparison (US vs EU)
@@ -103,7 +103,7 @@ formataxis(gca);
 legend('average', 'US', 'EU', 'Location', 'best');
 title('$\sigma$ Comparison', 'interpreter', 'latex', 'fontsize', 16);
 if printit == 1
-    exportfig(gcf, [foldername 'F_useu_comp'], 'color', 'cmyk', 'resolution', 1600);
+    exportfig(gcf, [foldername 'F_useu_comp' mt_suffix], 'color', 'cmyk', 'resolution', 1600);
 end
 
 %% Figure 5: Solver Diagnostics (Flags)
