@@ -65,8 +65,11 @@ else
 end
 
 % Tauchen grid width (discretization choice, not estimated)
-m_sigma_us_r1 = 8.0;  % was 8.0
-m_sigma_us_r2 = 2.5;  % was 2.5
+% Adaptive grid width based on unconditional standard deviation of each regime
+sigma_uncond_r1 = Sigma_sigma_us_r1 / sqrt(max(1e-6, 1 - rho_sigma_us_r1^2));
+sigma_uncond_r2 = Sigma_sigma_us_r2 / sqrt(max(1e-6, 1 - rho_sigma_us_r2^2));
+m_sigma_us_r1 = max(3.0, 3.0 * sigma_uncond_r1 / Sigma_sigma_us_r1);
+m_sigma_us_r2 = max(3.0, 3.0 * sigma_uncond_r2 / Sigma_sigma_us_r2);
 
 % Construction of process
 Tauchen_method=1; Rouwenhorst_method=0;
