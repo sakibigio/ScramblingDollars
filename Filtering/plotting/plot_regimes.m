@@ -38,6 +38,14 @@ if ~exist('printit', 'var')
     printit = 0;
 end
 
+if ~exist('matching_type', 'var')
+    matching_type = 1;  % default to Cobb-Douglas
+end
+mt_suffix = '_cd';
+if matching_type == 0
+    mt_suffix = '_l';
+end
+
 threshold = 0.5;    % Prob. of low-risk state below which = scrambling regime
 
 % Output folder: match convention from other plotting scripts
@@ -83,6 +91,21 @@ end
 % scrambling  <=>  high_t == 1  <=>  low-risk prob < threshold
 sigma_us_stateprob = [raw_prob(:,2); 0];   % append 0 for safe end-indexing
 sigma_us_high_t    = (sigma_us_stateprob < threshold);
+
+% Load estimated parameters for LaTeX table
+params_file = 'data/MS_sigma_us_params.csv';
+if ~exist(params_file, 'file')
+    warning('plot_regimes: %s not found. LaTeX table will not be generated.', params_file);
+    write_table = false;
+else
+    params_tbl = readtable(params_file);
+    % Build a struct for easy access by param name
+    for kk = 1:height(params_tbl)
+        pname = strrep(params_tbl.param{kk}, '.', '_');
+        pstruct.(pname) = params_tbl.value(kk);
+    end
+    write_table = true;
+end
 
 %% ── 2. HELPER: REGIME SHADING ───────────────────────────────────────────
 % Call AFTER data lines are drawn so ylim is stable.
@@ -321,5 +344,44 @@ fprintf('E[DW_us]   (%% dep.)  %9.4f   %9.4f\n', ...
 fprintf('E[FF_us]   (%% dep.)  %9.4f   %9.4f\n', ...
     mean(FF_us_t(index_scr))  * 100,       mean(FF_us_t(index_nor))  * 100);
 fprintf('Frac. scrambling:     %.1f%%\n', 100 * mean(index_scr));
+
+%% ── 11. WRITE LATEX TABLE ────────────────────────────────────────────────
+if write_table && printit
+    tex_file = fullfile(foldername, ['tab_markov_estimates' mt_suffix '.tex']);
+    fid = fopen(tex_file, 'wt');
+    fprintf(fid, '\\begin{tabular}{lcc}\n');
+    fprintf(fid, '    \\toprule\n');
+    fprintf(fid, '    \\multicolumn{3}{c}{\\textbf{Within Regime Processes}} \\\\\n');
+    fprintf(fid, '    \\midrule\n');
+    fprintf(fid, '    \\textbf{Coefficient} & \\textbf{Scrambling} & \\textbf{Normal} \\\\\n');
+    fprintf(fid, '    \\midrule\n');
+    fprintf(fid, '    $\\hat{\\sigma}_{ss}$ & %.1f & %.1f \\\\\n', ...
+        pstruct.sigma_ss_scr, pstruct.sigma_ss_nor);
+    fprintf(fid, '                        & (%.1f) & (%.1f) \\\\\n', ...
+        pstruct.sigma_ss_scr_se, pstruct.sigma_ss_nor_se);
+    fprintf(fid, '    $\\rho^{\\sigma,us}$  & %.1f & %.1f \\\\\n', ...
+        pstruct.rho_scr, pstruct.rho_nor);
+    fprintf(fid, '                        & (%.1f) & (%.1f) \\\\\n', ...
+        pstruct.rho_scr_se, pstruct.rho_nor_se);
+    fprintf(fid, '    $\\Sigma^{\\sigma,us}$ & %.1f & %.1f \\\\\n', ...
+        pstruct.Sigma_scr, pstruct.Sigma_nor);
+    fprintf(fid, '                         & (%.1f) & (%.1f) \\\\\n', ...
+        pstruct.Sigma_scr_se, pstruct.Sigma_nor_se);
+    fprintf(fid, '    \\bottomrule\n');
+    fprintf(fid, '\\end{tabular}\n');
+    fprintf(fid, '\\vspace{6pt}\n');
+    fprintf(fid, '\\begin{tabular}{lcc}\n');
+    fprintf(fid, '    \\toprule\n');
+    fprintf(fid, '    \\multicolumn{2}{c}{\\textbf{Transition Matrix}} \\\\\n');
+    fprintf(fid, '    \\midrule\n');
+    fprintf(fid, '    & \\textbf{Scrambling} & \\textbf{Normal} \\\\\n');
+    fprintf(fid, '    \\midrule\n');
+    fprintf(fid, '    $\\Pr(Z_t = Z_{t-1})$ & %.1f\\%% & %.1f\\%% \\\\\n', ...
+        (1 - pstruct.trans_scr) * 100, (1 - pstruct.trans_nor) * 100);
+    fprintf(fid, '    \\bottomrule\n');
+    fprintf(fid, '\\end{tabular}\n');
+    fclose(fid);
+    fprintf('LaTeX table saved to: %s\n', tex_file);
+end
 
 fprintf('\nplot_regimes.m complete. 7 figures saved to:\n  %s\n', foldername);
