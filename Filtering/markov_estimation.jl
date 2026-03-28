@@ -171,6 +171,84 @@ end
 
 println("Estimated AR(1) coefficient (phi_us): ", phi_us)
 
+# ── Export US estimated parameters to CSV ──────────────────────────────────
+# Regime labels: nor = normal (high-prob state), scr = scrambling (low-prob state)
+# After regime identification above:
+#   nor: intercept_us, phi_us, sigma_resid_us_r1
+#   scr: intercept_us_r2, phi_us_r2, sigma_resid_us_r2
+
+mu_us_nor = intercept_us / (1 - phi_us)
+mu_us_scr = intercept_us_r2 / (1 - phi_us_r2)
+sigma_ss_nor = exp(mu_us_nor)
+sigma_ss_scr = exp(mu_us_scr)
+
+# Transition probabilities (leaving probabilities)
+# model_us.P is the transition matrix from MarSwitching
+P_us_tmp = model_us.P
+if mean(probs_us[:,1]) > mean(probs_us[:,2])
+    # State 1 = normal, State 2 = scrambling
+    trans_nor = 1 - P_us_tmp[1,1]  # prob of leaving normal
+    trans_scr = 1 - P_us_tmp[2,2]  # prob of leaving scrambling
+else
+    trans_nor = 1 - P_us_tmp[2,2]
+    trans_scr = 1 - P_us_tmp[1,1]
+end
+
+# Standard errors via Hessian — use a function to avoid try-block scoping issues
+function compute_msm_se(model, probs, ss_nor, ss_scr, phi_nor, phi_scr)
+    nans = (NaN, NaN, NaN, NaN, NaN, NaN)
+    try
+        raw_se = MarSwitching.get_std_errors(model)
+        V_σ, V_β = MarSwitching.vec2param_switch(raw_se, model.k,
+                        model.n_β, model.n_β_ns, model.switching_var)
+        if mean(probs[:,1]) > mean(probs[:,2])
+            se_Σ_nor = V_σ[1]; se_Σ_scr = V_σ[2]
+            se_int_nor = V_β[1][1]; se_int_scr = V_β[2][1]
+            se_ρ_nor = V_β[1][2]; se_ρ_scr = V_β[2][2]
+        else
+            se_Σ_nor = V_σ[2]; se_Σ_scr = V_σ[1]
+            se_int_nor = V_β[2][1]; se_int_scr = V_β[1][1]
+            se_ρ_nor = V_β[2][2]; se_ρ_scr = V_β[1][2]
+        end
+        # Delta method: SE(exp(mu)) ≈ exp(mu) * SE(intercept) / |1 - phi|
+        se_ss_nor = ss_nor * se_int_nor / abs(1 - phi_nor)
+        se_ss_scr = ss_scr * se_int_scr / abs(1 - phi_scr)
+        println("  Standard errors computed successfully")
+        return (se_ss_nor, se_ss_scr, se_ρ_nor, se_ρ_scr, se_Σ_nor, se_Σ_scr)
+    catch e
+        println("  Warning: could not compute standard errors — $e")
+        return nans
+    end
+end
+
+(se_sigma_ss_nor, se_sigma_ss_scr, se_rho_nor, se_rho_scr, se_Sigma_nor, se_Sigma_scr) =
+    compute_msm_se(model_us, probs_us, sigma_ss_nor, sigma_ss_scr, phi_us, phi_us_r2)
+
+us_params_df = DataFrame(
+    param = [
+        "sigma_ss_scr",    "sigma_ss_nor",
+        "sigma_ss_scr_se", "sigma_ss_nor_se",
+        "rho_scr",         "rho_nor",
+        "rho_scr_se",      "rho_nor_se",
+        "Sigma_scr",       "Sigma_nor",
+        "Sigma_scr_se",    "Sigma_nor_se",
+        "trans_scr",       "trans_nor"
+    ],
+    value = [
+        sigma_ss_scr,      sigma_ss_nor,
+        se_sigma_ss_scr,   se_sigma_ss_nor,
+        phi_us_r2,         phi_us,
+        se_rho_scr,        se_rho_nor,
+        sigma_resid_us_r2, sigma_resid_us_r1,
+        se_Sigma_scr,      se_Sigma_nor,
+        trans_scr,          trans_nor
+    ]
+)
+
+CSV.write("data/MS_sigma_us_params.csv", us_params_df)
+println("\nUS params written to data/MS_sigma_us_params.csv:")
+println(us_params_df)
+
 # Generate counterfactual (replace high-vol regimes with AR(1) from low-vol)
 lsigma_us = df.lsigma_us
 N = length(lsigma_us)
