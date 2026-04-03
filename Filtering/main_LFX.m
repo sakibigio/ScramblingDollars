@@ -49,7 +49,7 @@ else
     foldername='/Users/sakiclaudia/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
 end
 
-printit=0;
+printit=1;
 plotit= 0;
 
 tic;

@@ -41,6 +41,14 @@ if ~exist('printit', 'var')
     printit = 0;
 end
 
+if ~exist('matching_type', 'var')
+    matching_type = 1;  % default to Cobb-Douglas
+end
+mt_suffix = '_cd';
+if matching_type == 0
+    mt_suffix = '_l';
+end
+
 if ~exist('label_y', 'var')
     label_y = @(x) ylabel(x, 'Fontname', 'Times', 'FontWeight', 'normal', ...
         'Fontsize', 14, 'Interpreter', 'latex');

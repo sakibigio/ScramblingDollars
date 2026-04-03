@@ -52,9 +52,9 @@ threshold = 0.5;    % Prob. of low-risk state below which = scrambling regime
 [~, username] = system('whoami');
 username = strtrim(username);
 if strcmp(username, 'sakibigio')
-    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollars_Revision_Restud/quantfigs/';
+    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
 elseif strcmp(username, 'sakiclaudia')
-    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion/quantfigs/';
+    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
 else
     warning('Unknown user ''%s''. Figures will not be saved to Overleaf.', username);
     foldername = './quantfigs/';
@@ -149,7 +149,7 @@ plot(dates(datesperiod), sigma_eu_TED_t(datesperiod), 'LineWidth', 2.5, ...
     'LineStyle', '-.', 'Color', eu_color, 'HandleVisibility', 'off');
 title('Implied $\sigma^x_t$', 'Interpreter', 'latex', 'Fontsize', 16);
 if printit
-    exportgraphics(gcf, fullfile(foldername, 'F_sigmauseu.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_sigmauseu' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ── 4. FIGURE (b)  –  TED SPREAD ────────────────────────────────────────
@@ -170,7 +170,7 @@ plot(dates(datesperiod), TED_eu_t(datesperiod) * abs_scale, 'LineWidth', 2.5, ..
     'LineStyle', '-.', 'Color', eu_color, 'HandleVisibility', 'off');
 title('$\mathcal{TED}$ Spread (bps)', 'Interpreter', 'latex', 'Fontsize', 16);
 if printit
-    exportgraphics(gcf, fullfile(foldername, 'F_Tedtargets.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_Tedtargets' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ── 5. FIGURE (c)  –  US BOND PREMIA ────────────────────────────────────
@@ -197,7 +197,7 @@ plot(dates(datesperiod), (Rb_Rm_plot(datesperiod) - Rb_Rm_mean) * abs_scale, ...
     'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color, 'HandleVisibility', 'off');
 title('US Bond Premia (bps, demeaned)', 'Interpreter', 'latex', 'Fontsize', 16);
 if printit
-    exportgraphics(gcf, fullfile(foldername, 'F_BPus_fit.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_BPus_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ── 6. FIGURE (d)  –  EU BOND PREMIA ────────────────────────────────────
@@ -224,7 +224,7 @@ plot(dates(datesperiod), (Rb_Rm_eu_plot(datesperiod) - Rb_Rm_eu_mean) * abs_scal
     'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color, 'HandleVisibility', 'off');
 title('EU Bond Premia (bps, demeaned)', 'Interpreter', 'latex', 'Fontsize', 16);
 if printit
-    exportgraphics(gcf, fullfile(foldername, 'F_BPeu_fit.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_BPeu_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ── 7. FIGURE (e)  –  US WINDOW / INTERBANK ─────────────────────────────
@@ -243,48 +243,38 @@ end
 
 %% ── 7a. FIGURE (e)  –  DW / DEPOSITS ────────────────────────────────────
 
+%% ── 7a. FIGURE (e)  –  DW / DEPOSITS ────────────────────────────────────
+
 figure('Name', 'US Discount Window', 'NumberTitle', 'off');
-plot(dates(datesperiod), zeros(1, numel(datesperiod)), ...
-    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
-h_mod = plot(dates(datesperiod), (DW_us_t(datesperiod) - mean(DW_us_t(datesperiod))) * 100, ...
-    'LineWidth', 2.5, 'Color', 'r');
-h_dat = plot(dates(datesperiod), (DW_n(datesperiod) - nanmean(DW_n(datesperiod))) * 100, ...
+h_mod = plot(dates(datesperiod), DW_us_t(datesperiod) * 100, ...
+    'LineWidth', 2.5, 'Color', 'r'); hold on;
+h_dat = plot(dates(datesperiod), DW_n(datesperiod) * 100, ...
     'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color);
 grid on; axis tight;
 datetick('x', 'mmm-yy', 'keeplimits');
 formataxis(gca);
 regime_patches(dates, datesperiod, sigma_us_high_t);
 legend([h_mod h_dat], 'Model', 'Data', 'Box', 'off', 'Color', 'none');
-plot(dates(datesperiod), (DW_us_t(datesperiod) - mean(DW_us_t(datesperiod))) * 100, ...
-    'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
-plot(dates(datesperiod), (DW_n(datesperiod) - nanmean(DW_n(datesperiod))) * 100, ...
-    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color, 'HandleVisibility', 'off');
-title('US Discount Window / Deposits (\%, demeaned)', 'Interpreter', 'latex', 'Fontsize', 16);
+ylabel('(\% of Deposits)', 'Interpreter', 'latex', 'Fontsize', 16);
 if printit
-    exportgraphics(gcf, fullfile(foldername, 'F_DWus_fit.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_DWus_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
-%% ── 7b. FIGURE (e2) –  FF / DEPOSITS ────────────────────────────────────
+%% ── 7b. FIGURE (f)  –  FF / DEPOSITS ────────────────────────────────────
 
 figure('Name', 'US Fed Funds Volume', 'NumberTitle', 'off');
-plot(dates(datesperiod), zeros(1, numel(datesperiod)), ...
-    'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
-h_mod = plot(dates(datesperiod), (FF_us_t(datesperiod) - mean(FF_us_t(datesperiod))) * 100, ...
-    'LineWidth', 2.5, 'Color', 'r');
-h_dat = plot(dates(datesperiod), (FF_n(datesperiod) - nanmean(FF_n(datesperiod))) * 100, ...
+h_mod = plot(dates(datesperiod), FF_us_t(datesperiod) * 100, ...
+    'LineWidth', 2.5, 'Color', 'r'); hold on;
+h_dat = plot(dates(datesperiod), FF_n(datesperiod) * 100, ...
     'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color);
 grid on; axis tight;
 datetick('x', 'mmm-yy', 'keeplimits');
 formataxis(gca);
 regime_patches(dates, datesperiod, sigma_us_high_t);
 legend([h_mod h_dat], 'Model', 'Data', 'Box', 'off', 'Color', 'none');
-plot(dates(datesperiod), (FF_us_t(datesperiod) - mean(FF_us_t(datesperiod))) * 100, ...
-    'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
-plot(dates(datesperiod), (FF_n(datesperiod) - nanmean(FF_n(datesperiod))) * 100, ...
-    'LineWidth', 2.5, 'LineStyle', '-.', 'Color', data_color, 'HandleVisibility', 'off');
-title('US Interbank Volume / Deposits (\%, demeaned)', 'Interpreter', 'latex', 'Fontsize', 16);
+ylabel('(\% of Deposits)', 'Interpreter', 'latex', 'Fontsize', 16);
 if printit
-    exportgraphics(gcf, fullfile(foldername, 'F_FFus_fit.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_FFus_fit' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ── 8. FIGURE (f)  –  DISPERSION IN US INTERBANK RATES ──────────────────
@@ -302,7 +292,7 @@ plot(dates(datesperiod), Chi_D_US(datesperiod) * abs_scale, ...
     'LineWidth', 2.5, 'Color', data_color, 'HandleVisibility', 'off');
 title('Dispersion in US Interbank Rates (bps)', 'Interpreter', 'latex', 'Fontsize', 16);
 if printit
-    exportgraphics(gcf, fullfile(foldername, 'F_IBdispersion.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_IBdispersion' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ── 9. FIGURE (tab-estimated) – FILTERED PROBABILITIES ──────────────────
@@ -310,17 +300,17 @@ end
 figure('Name', 'Filtered Regime Probabilities', 'NumberTitle', 'off');
 plot(dates(datesperiod), 0.5 * ones(1, numel(datesperiod)), ...
     'LineWidth', 1.5, 'LineStyle', '--', 'Color', 'k'); hold on;
-plot(dates(datesperiod), sigma_us_stateprob(datesperiod), ...
+plot(dates(datesperiod), 1-sigma_us_stateprob(datesperiod), ...
     'LineWidth', 2.5, 'Color', 'r');
 grid on; axis tight; ylim([0 1]);
 datetick('x', 'mmm-yy', 'keeplimits');
 formataxis(gca);
 regime_patches(dates, datesperiod, sigma_us_high_t);
-plot(dates(datesperiod), sigma_us_stateprob(datesperiod), ...
+plot(dates(datesperiod), 1-sigma_us_stateprob(datesperiod), ...
     'LineWidth', 2.5, 'Color', 'r', 'HandleVisibility', 'off');
 title('Prob. Low Funding Risk State', 'Interpreter', 'latex', 'Fontsize', 16);
 if printit
-    exportgraphics(gcf, fullfile(foldername, 'F_sigmaus_states.pdf'), 'ContentType', 'vector');
+    exportgraphics(gcf, fullfile(foldername, ['F_sigmaus_states' mt_suffix '.pdf']), 'ContentType', 'vector');
 end
 
 %% ── 10. REGIME MOMENTS (console) ────────────────────────────────────────

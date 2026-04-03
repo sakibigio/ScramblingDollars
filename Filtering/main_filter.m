@@ -26,7 +26,7 @@ addpath('data');
 addpath('plotting');
 
 % Print/plot options
-printit = 0;
+printit =  1;
 plotdata = 0;
 printver = 0;
 
