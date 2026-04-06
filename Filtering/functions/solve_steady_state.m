@@ -154,7 +154,7 @@ curlist = {'au','ca','jp','nz','no','sw','ch','uk'};
 x0 = [mu_us_ss;Rd_us_ss];
 for j=1:length(curlist)
     eval(['Rm_temp = imss_' curlist{j} ';']);
-    eval(['iota_temp = iwss_' curlist{j} '-imss_' curlist{j} ';']);
+    iota_temp = iota_ss / freq;
     eval(['target = ln_' curlist{j} '_us_ss;']);
     [x,fval] = fsolve(@(x) ...
     feqm_multicur(x,Echi_d,Echi_m,Rm_temp,Rm_us,ploss_eu,ploss_us,sigma_eu,sigma_us,iota_temp,iota_us,lambda_eu,lambda_us,Rd_us_ss,mu_us_ss),...

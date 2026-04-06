@@ -22,6 +22,7 @@ if matching_type == 0
     eta       = 0.5;
     ploss_eu    = 0.75   ;  % probability of an outflow of euro deposits
     ploss_us    = 0.75   ;  % probability of an outflow of dollar deposits
+    iota_ss     = 0.1;    % annual, nominal, decimal
 elseif matching_type == 1
     % Cobb-Douglas matching
     lambda_us = 1.0 ; % 4.5 nice. eta = 0.625 nice values...
@@ -29,6 +30,7 @@ elseif matching_type == 1
     eta       = 0.7 ;
     ploss_eu  = 0.5 ;  % probability of an outflow of euro deposits
     ploss_us  = 0.5 ;  % probability of an outflow of dollar deposits
+    iota_ss   = 0.1;    % annual, nominal, decimal
 else
     error('Unknown matching_type: %d. Use 0 (Leontief) or 1 (Cobb-Douglas)', matching_type);
 end
@@ -37,12 +39,15 @@ varrho      = 0.0   ;
 gamma       = 1;
 
 %-----------Policy------------------
+% Discount window-IOR spread (single source of truth)
+
+
 im_eu = imss_eu;
 im_us = imss_us;
-iw_eu = iwss_eu;
-iw_us = iwss_us;
-iota_eu = (iw_eu-im_eu)/pi_eu_ss;
-iota_us = (iw_us-im_us)/pi_us_ss;
+iota_eu = iota_ss / freq / pi_eu_ss;
+iota_us = iota_ss / freq / pi_us_ss;
+iw_eu = im_eu + iota_eu * pi_eu_ss;
+iw_us = im_us + iota_us * pi_us_ss;
 
 M_eu    = M_eu_ss;
 M_us    = M_us_ss;

@@ -41,7 +41,6 @@ demean_range=year_target;
 %% -> we add a scaling factor to the EBP, else we cannot get Rb-Rm*>Rm-Rm*...
 Rb_Rm_scale=0/freq/1e4; % Shift in the scale of Rb-Rm -> like risk premium
 % Rb_Rm_scale=200/freq/1e4; % Shift in the scale of Rb-Rm -> like risk premium
-iota_ss = 0.1;            % Discount window-IOR spread (decimal, annual, nominal)
 
 
 %% US liquidity ratio
@@ -207,7 +206,6 @@ for j=1:length(curlist)
     eval(['i_t_temp = i_' curlist{j} '_t;']);
     eval(['libor_t_temp = libor_' curlist{j} '_t;']);
     eval(['imss_' curlist{j} '=mean(1+i_t_temp)/mean(1+pi_' curlist{j} '_t);']);
-    eval(['iwss_' curlist{j} '=mean(1+i_t_temp+iota_ss/freq)/mean(1+pi_' curlist{j} '_t);']);
     eval(['RLiborss_' curlist{j} '=mean(1+libor_t_temp)/mean(1+pi_' curlist{j} '_t);']);
     eval(['i_t_temp = (1+i_t_temp)/mean(1+pi_' curlist{j} '_t)-1;']);
     eval(['libor_t_temp = (1+libor_t_temp)/mean(1+pi_' curlist{j} '_t)-1;']);
@@ -222,16 +220,13 @@ for j=1:length(curlist)
     end
     eval(['sigma_im_' curlist{j} '=std(R);']);
     eval(['piss_' curlist{j} '=mean(pi_' curlist{j} '_t)+1;']);
-    savelist = [savelist 'imss_' curlist{j} ' iwss_' curlist{j} ' rho_im_' curlist{j} ' sigma_im_' curlist{j} ' RLiborss_' curlist{j} ' '];
+    savelist = [savelist 'imss_' curlist{j} ' rho_im_' curlist{j} ' sigma_im_' curlist{j} ' RLiborss_' curlist{j} ' '];
 end
 
 % Subtract 100bps from AUS policy rate and 200bps from NZL policy rates
 imss_au = mean(i_au_t)-100/12/1e4;
 imss_nz = mean(i_nz_t)-200/12/1e4;
 imss_no = mean(i_no_t)-50/12/1e4;
-iwss_au = iwss_au-100/12/1e4;
-iwss_nz = iwss_nz-200/12/1e4;
-iwss_no = iwss_no-50/12/1e4;
 RLiborss_au = mean(libor_au_t)-100/12/1e4;
 RLiborss_nz = mean(libor_nz_t)-200/12/1e4;
 RLiborss_no = mean(libor_no_t)-50/12/1e4;
