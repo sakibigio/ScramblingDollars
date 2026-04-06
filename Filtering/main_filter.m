@@ -26,7 +26,7 @@ addpath('data');
 addpath('plotting');
 
 % Print/plot options
-printit =  1;
+printit =  0;
 plotdata = 0;
 printver = 0;
 
@@ -406,6 +406,8 @@ if run_julia == 1
             julia_path = '/opt/homebrew/bin/julia';
         elseif exist('/Applications/Julia-1.10.app/Contents/Resources/julia/bin/julia', 'file')
             julia_path = '/Applications/Julia-1.10.app/Contents/Resources/julia/bin/julia';
+        elseif exist('/Users/sakibigio/.juliaup/bin/julia', 'file')
+            julia_path = '/Users/sakibigio/.juliaup/bin/julia';
         else
             warning('Julia not found. Run markov_estimation.jl manually.');
             julia_path = '';
