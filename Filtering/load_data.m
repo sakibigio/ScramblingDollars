@@ -5,7 +5,7 @@
 clear; 
 close all;
 
-% Notes: July '21
+% Notes: data ends in July 2025
 % issues with persistence...we need to externally calibrate persistence.
 
 %% List of model variables
@@ -19,17 +19,22 @@ exo_persistence_M=1; % Exogenous persistence of M
 exo_persistence=0  ; % Exogenous persistence of i
 
 % Inflation and Monetary Base
-plotit=0;
-dates=datenum(2001,1:234,1);
-dates=datenum(2001,1:234,1);
+plotit=1;
+
+% Adjustments
+freq = 12;
+T         = 295;        % Number of data observations (last data row 321 - 26)
+row_start = 27;
+row_end   = 26 + T;
+row_end1  = 27 + T;
+liq_ratio_scale=0.18     ; % Scale used to suggest ratio
+liq_ratio_eu_scale=0.40  ; % Scale used to match a bank ratio
+
+dates=datenum(2001,1:T,1);
+dates=datenum(2001,1:T,1);
 formataxis   = @(x) set(x, 'Fontname', 'Times', 'FontWeight', 'normal');
 label_x      = @(x) xlabel(x,'Fontname', 'Times', 'FontWeight', 'normal','Interpreter','latex');
 label_y      = @(x) ylabel(x,'Fontname', 'Times', 'FontWeight', 'normal','interpreter','latex');
-    
-% Adjustments
-freq = 12;
-liq_ratio_scale=0.18     ; % Scale used to suggest ratio
-liq_ratio_eu_scale=0.40  ; % Scale used to match a bank ratio
 
 % monthly decimal return to annual BPS
 abps_factor=freq*1e4;
@@ -44,7 +49,7 @@ Rb_Rm_scale=0/freq/1e4; % Shift in the scale of Rb-Rm -> like risk premium
 
 
 %% US liquidity ratio
-log_liqratio_t = log(liq_ratio_scale*xlsread('LFX_datainputs.xlsx','DataCounterpart','C27:C260'));
+log_liqratio_t = log(liq_ratio_scale*read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['C' num2str(row_start) ':C' num2str(row_end)], T));
 
 % % Option: we can detrend liquidity ratio
 % ln_mu_us_obs = diff(log_liqratio_t);
@@ -56,34 +61,34 @@ display(['Average liquidity ratio ' num2str(mean(exp(log_liqratio_t)))]);
 mu_us = log_liqratio_t;
 
 %% Euro Liquidity Ratio
-temp  = xlsread('LFX_datainputs.xlsx','DataCounterpart','D27:D260');
+temp  = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['D' num2str(row_start) ':D' num2str(row_end)], T);
 mu_eu = log(liq_ratio_eu_scale*temp);
 
 %% Spreads data: OIS, Libor Gap, CIP
-cip      = xlsread('LFX_datainputs.xlsx','DataCounterpart','E27:E260')/freq/1e4;
-ois      = xlsread('LFX_datainputs.xlsx','DataCounterpart','F27:F260')/freq/1e4;
-ebp      = xlsread('LFX_datainputs.xlsx','DataCounterpart','G27:G260')/freq/1e4;
-ebp_eu   = xlsread('LFX_datainputs.xlsx','DataCounterpart','CG27:CG260')/freq/1e4;
-Chi_D_US = xlsread('LFX_datainputs.xlsx','DataCounterpart','H27:H260')/freq/1e4;
+cip      = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['E' num2str(row_start) ':E' num2str(row_end)], T)/freq/1e4;
+ois      = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['F' num2str(row_start) ':F' num2str(row_end)], T)/freq/1e4;
+ebp      = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['G' num2str(row_start) ':G' num2str(row_end)], T)/freq/1e4;
+ebp_eu   = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['CG' num2str(row_start) ':CG' num2str(row_end)], T)/freq/1e4;
+Chi_D_US = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['H' num2str(row_start) ':H' num2str(row_end)], T)/freq/1e4;
 
 
 %% Policy interest rates
 % Policy Rates
-policyrate = xlsread('LFX_datainputs.xlsx','DataCounterpart','S27:AB260');
+policyrate = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['S' num2str(row_start) ':AB' num2str(row_end)], T);
 policyrate(isnan(policyrate)) = 0; % Check issues here
-Liborrate = xlsread('LFX_datainputs.xlsx','DataCounterpart','AI27:AQ260');
+Liborrate = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['AI' num2str(row_start) ':AQ' num2str(row_end)], T);
 Liborrate(isnan(Liborrate)) = 0; % Check issues here
-TED_all = xlsread('LFX_datainputs.xlsx','DataCounterpart','CQ27:CZ260');
+TED_all = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['CQ' num2str(row_start) ':CZ' num2str(row_end)], T);
 TED_s_us_t = TED_all(:,1)/freq/100;
 i_us_t = policyrate(:,1)/freq/100;
-BP_s_all = xlsread('LFX_datainputs.xlsx','DataCounterpart','CG27:CP260');
+BP_s_all = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['CG' num2str(row_start) ':CP' num2str(row_end)], T);
 BP_s_us_t = BP_s_all(:,1)/freq/100;
-CIP_s_all = xlsread('LFX_datainputs.xlsx','DataCounterpart','DA27:DJ260');
+CIP_s_all = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['DA' num2str(row_start) ':DJ' num2str(row_end)], T);
 CIP_s_us_t = CIP_s_all(:,1)/freq/100;
 
 %% Discount Window and Fed Funds Volume
-DW_n = xlsread('LFX_datainputs.xlsx','DataCounterpart','BV27:BV260'); % WLCFLPCL / TCDSL (primary credit / checkable deposits)
-FF_n = xlsread('LFX_datainputs.xlsx','DataCounterpart','BW27:BW260'); % FF volume / TCDSL (fed funds / checkable deposits)
+DW_n = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['BV' num2str(row_start) ':BV' num2str(row_end)], T); % WLCFLPCL / TCDSL (primary credit / checkable deposits)
+FF_n = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['BW' num2str(row_start) ':BW' num2str(row_end)], T); % FF volume / TCDSL (fed funds / checkable deposits)
 
 % Replace leading zeros with NaN (series start after sample beginning)
 % WLCFLPCL starts 2003, FF volume starts 2006
@@ -99,9 +104,9 @@ fprintf('DW_n available from period %d, FF_n from period %d\n', first_dw, first_
 
 %% Inflation and Money Base
 % US money base M_us
-%res_us_t = xlsread('LFX_rawdata.xls','EuroData','T28:T261');
-%sec_us_t = xlsread('LFX_rawdata.xls','EuroData','U28:U261');
-M_us_t = xlsread('LFX_datainputs.xlsx','DataCounterpart','AC27:AC260')/1000; % in millions, convert to billions
+%res_us_t = read_pad('LFX_rawdata.xls','EuroData','T28:T261');
+%sec_us_t = read_pad('LFX_rawdata.xls','EuroData','U28:U261');
+M_us_t = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['AC' num2str(row_start) ':AC' num2str(row_end)], T)/1000; % in millions, convert to billions
 liq_t = (M_us_t);
 log_liq_t = log(liq_t);
 %log_liq_t_detrend = log_liq_t-(1:length(log_liq_t))'*log(mean(1+pi_us_t));
@@ -136,7 +141,7 @@ rho_M_us = B(2);
 sigma_M_us = std(R);
 
 % Euro Money
-M_eu_t         = xlsread('LFX_datainputs.xlsx','DataCounterpart','AD28:AD261')/1000; % in millions, convert to billions
+M_eu_t         = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['AD' num2str(row_start) ':AD' num2str(row_end)], T)/1000; % in millions, convert to billions
 liq_eu_t       = M_eu_t; 
 log_liq_eu_t   = log(M_eu_t);
 d_log_liq_eu_t = diff(log_liq_eu_t);
@@ -178,8 +183,8 @@ end
 
 %% Other Currencies
 % US inflation rate pi_us and policy interest rate im_us
-pi_us_t = xlsread('LFX_datainputs.xlsx','EuroData','AC28:AC261')/freq/100;
-libor_us_t = xlsread('LFX_datainputs.xlsx','EuroData','K28:K261')/freq/100;
+pi_us_t = read_pad('data/LFX_datainputs.xlsx','EuroData',['AC' num2str(row_start) ':AC' num2str(row_end)], T)/freq/100;
+libor_us_t = read_pad('data/LFX_datainputs.xlsx','EuroData',['K' num2str(row_start) ':K' num2str(row_end)], T)/freq/100;
 
 % Other countries' policy rate im_co, inflation rate pi_co and exchange
 % rate against USD
@@ -189,13 +194,13 @@ curindexlist = [3,2,10,9,4,6,8,7,5];
 
 % Read data of policy rates, inflation and exchange rates
 for j=1:length(datalist)
-%     eval(['i_' curlist{j} '_t = xlsread(''LFX_rawdata.xls'',''' datalist{j} 'Data'',''L28:L261'')/freq/100;']);
-   % eval(['libor_' curlist{j} '_t = xlsread(''LFX_datainputs.xlsx'',''' datalist{j} 'Data'',''L28:L261'')/freq/100;']);
+%     eval(['i_' curlist{j} '_t = read_pad(''LFX_rawdata.xls'',''' datalist{j} 'Data'',''L28:L261'')/freq/100;']);
+   % eval(['libor_' curlist{j} '_t = read_pad(''data/LFX_datainputs.xlsx'',''' datalist{j} 'Data'',''L28:L261'')/freq/100;']);
     eval(['i_' curlist{j} '_t     = policyrate(:,' num2str(curindexlist(j)) ')/freq/100;']);
     eval(['libor_' curlist{j} '_t     = policyrate(:,' num2str(curindexlist(j)) ')/freq/100;']);
     eval(['TED_s_' curlist{j} '_t     = TED_all(:,' num2str(curindexlist(j)) ')/freq/100;']);
-    eval(['pi_' curlist{j} '_t    = xlsread(''LFX_datainputs.xlsx'',''' datalist{j} 'Data'',''AD28:AD261'')/freq/100;']);
-    eval(['ln_' curlist{j} '_us_t = xlsread(''LFX_datainputs.xlsx'',''' datalist{j} 'Data'',''C28:C261'');']);
+    eval(['pi_' curlist{j} '_t    = read_pad(''data/LFX_datainputs.xlsx'',''' datalist{j} 'Data'',[''AD'' num2str(row_start) '':AD'' num2str(row_end)], T)/freq/100;']);
+    eval(['ln_' curlist{j} '_us_t = read_pad(''data/LFX_datainputs.xlsx'',''' datalist{j} 'Data'',[''C'' num2str(row_start) '':C'' num2str(row_end)], T);']);
     eval(['BP_s_' curlist{j} '_t     = BP_s_all(:,' num2str(curindexlist(j)) ')/freq/100;']);
     eval(['CIP_s_' curlist{j} '_t     = CIP_s_all(:,' num2str(curindexlist(j)) ')/freq/100;']);
 end
@@ -205,10 +210,10 @@ savelist = '';
 for j=1:length(curlist)
     eval(['i_t_temp = i_' curlist{j} '_t;']);
     eval(['libor_t_temp = libor_' curlist{j} '_t;']);
-    eval(['imss_' curlist{j} '=mean(1+i_t_temp)/mean(1+pi_' curlist{j} '_t);']);
-    eval(['RLiborss_' curlist{j} '=mean(1+libor_t_temp)/mean(1+pi_' curlist{j} '_t);']);
-    eval(['i_t_temp = (1+i_t_temp)/mean(1+pi_' curlist{j} '_t)-1;']);
-    eval(['libor_t_temp = (1+libor_t_temp)/mean(1+pi_' curlist{j} '_t)-1;']);
+    eval(['imss_' curlist{j} '=mean(1+i_t_temp)/mean(1+pi_' curlist{j} '_t,''omitnan'');']);
+    eval(['RLiborss_' curlist{j} '=mean(1+libor_t_temp)/mean(1+pi_' curlist{j} '_t,''omitnan'');']);
+    eval(['i_t_temp = (1+i_t_temp)/mean(1+pi_' curlist{j} '_t,''omitnan'')-1;']);
+    eval(['libor_t_temp = (1+libor_t_temp)/mean(1+pi_' curlist{j} '_t,''omitnan'')-1;']);
     X=[ones(length(i_t_temp)-1,1) i_t_temp(1:end-1)];
     [B,BINT,R,RINT,STATS] = regress(i_t_temp(2:end),X);
     eval(['i_' curlist{j} '_t = i_t_temp+1;']);
@@ -219,7 +224,7 @@ for j=1:length(curlist)
         eval(['rho_im_' curlist{j} '=0.99;']);
     end
     eval(['sigma_im_' curlist{j} '=std(R);']);
-    eval(['piss_' curlist{j} '=mean(pi_' curlist{j} '_t)+1;']);
+    eval(['piss_' curlist{j} '=mean(pi_' curlist{j} '_t,''omitnan'')+1;']);
     savelist = [savelist 'imss_' curlist{j} ' rho_im_' curlist{j} ' sigma_im_' curlist{j} ' RLiborss_' curlist{j} ' '];
 end
 
@@ -248,8 +253,8 @@ eval(['save dynare_calibration_param.mat M_us_ss rho_M_us sigma_M_us M_eu_ss rho
 % Calculate and save exchange rates (steady states and time-series paths)
 savelist = '';
 for j=1:length(curlist)-1
-%    eval(['ln_' curlist{j} '_us_t = ln_' curlist{j} '_us_t-(1:length(ln_' curlist{j} '_us_t))''*log(mean(1+pi_' curlist{j} '_t)/mean(1+pi_us_t));']);
-    eval(['ln_' curlist{j} '_us_ss = mean(ln_' curlist{j} '_us_t);']);
+%    eval(['ln_' curlist{j} '_us_t = ln_' curlist{j} '_us_t-(1:length(ln_' curlist{j} '_us_t))''*log(mean(1+pi_' curlist{j} '_t,''omitnan'')/mean(1+pi_us_t));']);
+    eval(['ln_' curlist{j} '_us_ss = mean(ln_' curlist{j} '_us_t,''omitnan'');']);
     eval(['inv_e_' curlist{j} ' = -ln_' curlist{j} '_us_t;']);
     savelist = [savelist 'ln_' curlist{j} '_us_t ln_' curlist{j} '_us_ss '];
 end
@@ -406,3 +411,14 @@ Ted_eu=TED_s_eu_t;
 
 %% Save all data for dynare estimation
 eval(['save data/LFX_data.mat mu_eu mu_us inv_e Ted_us Ted_eu inv_e_jp inv_e_ch M_us Rb_Rm Rb_Rm_eu Rb_us M_eu ois cip Chi_D_US pi_us_t pi_eu_t DW_n FF_n ' savelist ';']);
+
+%% Local helper: read a sheet range with xlsread, then NaN-pad to length T.
+% Handles both vectors and matrices; pads trailing rows with NaN if the
+% numeric output is shorter than T (which xlsread does when trailing cells
+% are empty).
+function v = read_pad(file, sheet, range, T)
+    v = xlsread(file, sheet, range);
+    if size(v,1) < T
+        v(size(v,1)+1:T, :) = NaN;
+    end
+end

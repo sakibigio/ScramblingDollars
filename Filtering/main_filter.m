@@ -26,7 +26,7 @@ addpath('data');
 addpath('plotting');
 
 % Print/plot options
-printit =  0;
+printit =  1;
 plotdata = 0;
 printver = 0;
 
@@ -76,8 +76,9 @@ zeta_eu = -epsilon_b;
 Theta_b = 3;
 
 % Date variables
-datesperiod = 1:234;
-dates = datenum(2001, 1:234, 1);
+T = length(mu_us);
+datesperiod = 1:T;
+dates = datenum(2001, 1:T, 1);
 
 % Plot formats
 FSize = 20;
