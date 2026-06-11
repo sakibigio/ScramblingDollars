@@ -27,8 +27,8 @@ T         = 295;        % Number of data observations (last data row 321 - 26)
 row_start = 27;
 row_end   = 26 + T;
 row_end1  = 27 + T;
-liq_ratio_scale=0.18     ; % Scale used to suggest ratio
-liq_ratio_eu_scale=0.40  ; % Scale used to match a bank ratio
+liq_ratio_scale=0.18  ; % Scale used to suggest ratio
+liq_ratio_eu_scale=0.2802; % Adjusted so mean(exp(mu_eu)) ≈ mean(exp(mu_us)) with US scale 0.18
 
 dates=datenum(2001,1:T,1);
 dates=datenum(2001,1:T,1);
@@ -64,11 +64,18 @@ mu_us = log_liqratio_t;
 temp  = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['D' num2str(row_start) ':D' num2str(row_end)], T);
 mu_eu = log(liq_ratio_eu_scale*temp);
 
+%% Liquidity Coverage Ratio series
+% Column EM of DataCounterpart pulls a FEDS-Note HQLA/total-assets series from
+% the 'LiquidityRatios' sheet (percent units; see that sheet's row-1 note for
+% construction). Loaded raw and saved to LFX_data.mat so the filter can see it.
+LCR_us = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['EM' num2str(row_start) ':EM' num2str(row_end)], T);
+display(['Average LCR series ' num2str(mean(LCR_us,'omitnan'))]);
+
 %% Spreads data: OIS, Libor Gap, CIP
 cip      = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['E' num2str(row_start) ':E' num2str(row_end)], T)/freq/1e4;
 ois      = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['F' num2str(row_start) ':F' num2str(row_end)], T)/freq/1e4;
 ebp      = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['G' num2str(row_start) ':G' num2str(row_end)], T)/freq/1e4;
-ebp_eu   = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['CG' num2str(row_start) ':CG' num2str(row_end)], T)/freq/1e4;
+ebp_eu   = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['CP' num2str(row_start) ':CP' num2str(row_end)], T)/freq/1e4;
 Chi_D_US = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['H' num2str(row_start) ':H' num2str(row_end)], T)/freq/1e4;
 
 
@@ -87,20 +94,27 @@ CIP_s_all = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['DA' num2str(
 CIP_s_us_t = CIP_s_all(:,1)/freq/100;
 
 %% Discount Window and Fed Funds Volume
-DW_n = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['BV' num2str(row_start) ':BV' num2str(row_end)], T); % WLCFLPCL / TCDSL (primary credit / checkable deposits)
-FF_n = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['BW' num2str(row_start) ':BW' num2str(row_end)], T); % FF volume / TCDSL (fed funds / checkable deposits)
+DW_n    = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['BV' num2str(row_start) ':BV' num2str(row_end)], T); % US primary credit / TCDSL
+FF_n    = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['BW' num2str(row_start) ':BW' num2str(row_end)], T); % US FF volume / TCDSL
+DW_eu_n = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['DY' num2str(row_start) ':DY' num2str(row_end)], T); % EU discount-window analogue / deposits (incomplete series)
+STL_FSI = read_pad('data/LFX_datainputs.xlsx','DataCounterpart',['EK' num2str(row_start) ':EK' num2str(row_end)], T); % St. Louis Fed Financial Stress Index
 
 % Replace leading zeros with NaN (series start after sample beginning)
-% WLCFLPCL starts 2003, FF volume starts 2006
-first_dw = find(DW_n > 0, 1, 'first');
-first_ff = find(FF_n > 0, 1, 'first');
+% WLCFLPCL starts 2003, FF volume starts 2006, EU DW series incomplete
+first_dw    = find(DW_n    > 0, 1, 'first');
+first_ff    = find(FF_n    > 0, 1, 'first');
+first_dw_eu = find(DW_eu_n > 0, 1, 'first');
 if ~isempty(first_dw) && first_dw > 1
     DW_n(1:first_dw-1) = NaN;
 end
 if ~isempty(first_ff) && first_ff > 1
     FF_n(1:first_ff-1) = NaN;
 end
-fprintf('DW_n available from period %d, FF_n from period %d\n', first_dw, first_ff);
+if ~isempty(first_dw_eu) && first_dw_eu > 1
+    DW_eu_n(1:first_dw_eu-1) = NaN;
+end
+fprintf('DW_n available from period %d, FF_n from period %d, DW_eu_n from period %d\n', ...
+    first_dw, first_ff, first_dw_eu);
 
 %% Inflation and Money Base
 % US money base M_us
@@ -280,8 +294,8 @@ RLibor_nz = RLibor_nz-200/12/1e4;
 %% Excess Bond Premium
 Rb_Rmtemp = ebp;
 Rb_Rmtemp_eu = ebp_eu;
-Rb_Rm     = Rb_Rmtemp-mean(Rb_Rmtemp)*(Rb_Rm_scale>0)+Rb_Rm_scale         ; % There's an adjustment here...
-Rb_Rm_eu  = Rb_Rmtemp_eu-mean(Rb_Rmtemp_eu)*(Rb_Rm_scale>0)+Rb_Rm_scale; % There's an adjustment here...
+Rb_Rm     = Rb_Rmtemp-mean(Rb_Rmtemp,'omitnan')*(Rb_Rm_scale>0)+Rb_Rm_scale         ; % There's an adjustment here...
+Rb_Rm_eu  = Rb_Rmtemp_eu-mean(Rb_Rmtemp_eu,'omitnan')*(Rb_Rm_scale>0)+Rb_Rm_scale; % There's an adjustment here...
 Rb_us     = log(Rb_Rm+exp(im_us));
 
 % if plotit==1
@@ -410,7 +424,7 @@ Ted_us=TED_s_us_t;
 Ted_eu=TED_s_eu_t;
 
 %% Save all data for dynare estimation
-eval(['save data/LFX_data.mat mu_eu mu_us inv_e Ted_us Ted_eu inv_e_jp inv_e_ch M_us Rb_Rm Rb_Rm_eu Rb_us M_eu ois cip Chi_D_US pi_us_t pi_eu_t DW_n FF_n ' savelist ';']);
+eval(['save data/LFX_data.mat mu_eu mu_us LCR_us inv_e Ted_us Ted_eu inv_e_jp inv_e_ch M_us Rb_Rm Rb_Rm_eu Rb_us M_eu ois cip Chi_D_US pi_us_t pi_eu_t DW_n FF_n DW_eu_n STL_FSI ' savelist ';']);
 
 %% Local helper: read a sheet range with xlsread, then NaN-pad to length T.
 % Handles both vectors and matrices; pads trailing rows with NaN if the

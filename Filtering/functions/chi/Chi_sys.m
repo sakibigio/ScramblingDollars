@@ -1,4 +1,4 @@
-function [echi_m, theta_val, psi_val, Smin_val, DW_val, FF_val, Q_val] = Chi_sys(mu, ploss, sigma, iota, lambda, eta, matching_type)
+function [echi_m, theta_val, psi_val, Smin_val, DW_val, FF_val, Q_val] = Chi_sys(mu, ploss, sigma, iota, lambda, eta, matching_type, varrho)
 % CHI_SYS - Full interbank system calculation
 %
 % Inputs:
@@ -9,6 +9,7 @@ function [echi_m, theta_val, psi_val, Smin_val, DW_val, FF_val, Q_val] = Chi_sys
 %   lambda        : Matching efficiency
 %   eta           : Bargaining power (default = 0.5)
 %   matching_type : 0 = Leontief, 1 = Cobb-Douglas (default = 0)
+%   varrho        : Threshold shift (default = 0). Effective threshold is mu-varrho.
 %
 % Outputs:
 %   echi_m    : Expected marginal liquidity E[χ^m]
@@ -25,21 +26,12 @@ end
 if nargin < 7 || isempty(matching_type)
     matching_type = 0;
 end
+if nargin < 8 || isempty(varrho)
+    varrho = 0;
+end
 
-% Distribution functions (don't depend on matching type)
-F = @(omega, p, s) (omega <= 0) .* exp(p./s .* omega) .* p + ...
-    (omega > 0) .* (p + (1-p) .* (1 - exp(-(1-p)./s .* omega)));
-
-Smin = @(m, p, s) s .* exp(-p./s .* m);
-Spl  = @(m, p, s) m + s .* exp(-p./s .* m);
-
-% Compute distribution values
-Smin_val = Smin(mu, ploss, sigma);
-Spl_val  = Spl(mu, ploss, sigma);
-F_val    = F(-mu, ploss, sigma);
-
-% Market tightness from distribution
-theta_val = Smin_val ./ Spl_val;
+% Distribution aggregates at effective threshold (mu - varrho)
+[Smin_val, Spl_val, theta_val, F_val, ~] = distribution_aggregates(mu, ploss, sigma, varrho);
 
 % Chi and Psi functions (depend on matching type)
 chi_p = Chi_p(theta_val, iota, lambda, eta, matching_type);

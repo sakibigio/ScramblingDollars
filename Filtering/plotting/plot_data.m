@@ -31,8 +31,13 @@ else
 end
 
 %% Load data
-load LFX_data;
-load exchange_rate_data;
+% Use explicit paths anchored to this script's location so the script
+% works whether invoked from project root (e.g. main_filter.m) or via
+% run('plotting/plot_data.m') (which cd's into plotting/).
+script_dir   = fileparts(mfilename('fullpath'));
+project_root = fullfile(script_dir, '..');
+load(fullfile(project_root, 'data', 'LFX_data.mat'));
+load(fullfile(project_root, 'exchange_rate_data.mat'));
 
 %% Plot formatting
 formataxis = @(x) set(x, 'Fontname', 'Times', 'FontWeight', 'normal', ...
@@ -43,8 +48,9 @@ label_y = @(x) ylabel(x, 'Fontname', 'Times', 'FontWeight', 'normal', ...
     'Fontsize', 28, 'Interpreter', 'latex');
 
 %% Date and scale settings
-datesperiod = 1:234;
-dates = datenum(2001, 1:234, 1);
+T = length(mu_us);
+datesperiod = 1:T;
+dates = datenum(2001, 1:T, 1);
 abs_scale = 12e4;
 
 % Currency lists

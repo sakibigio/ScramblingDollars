@@ -173,7 +173,7 @@ Rm_us_ss=Rm_us;
 Rm_eu_ss=Rm_eu-im_eu_adj;
 CIP_approx=(Rm_eu_ss^12-Rm_us_ss^12)*1e4;
 Rm_us=Rm_us;
-Rm_eu=Rm_eu-0.0006;
+Rm_eu=Rm_eu-im_eu_adj;  % was hardcoded 0.0006; now tracks im_eu_adj (params.m) consistently
 
 % Test for solutions
 Test1=Rm_us_ss+(1-F(-mu_us_ss,ploss_us,sigma_us))*chi_p_us_ss+F(-mu_us_ss,ploss_us,sigma_us)*chi_m_us_ss...

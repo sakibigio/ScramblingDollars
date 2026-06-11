@@ -43,11 +43,17 @@ addpath('utils');
 addpath('data');
 addpath('plotting');
 
-if strcmp(getenv('HOME'),'/Users/sakiclaudia')
-    foldername='/Users/sakiclaudia/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion/quantfigs/';
+[~, username] = system('whoami');
+username = strtrim(username);
+if strcmp(username, 'sakibigio')
+    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
+elseif strcmp(username, 'sakiclaudia')
+    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
 else
-    foldername='/Users/sakiclaudia/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
+    warning('Unknown user: %s. Figures will not be saved to Overleaf.', username);
+    foldername = './';
 end
+if ~exist(foldername, 'dir'); mkdir(foldername); end
 
 printit=1;
 plotit= 0;

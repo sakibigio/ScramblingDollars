@@ -13,7 +13,7 @@
 %       Current values are from Leontief-filtered Markov estimation.
 
 %% Global Solution
-N_sigma_us = 102;
+N_sigma_us = 152;  % 76 nodes/regime — reduced from 302 (too slow in fsolve)
 
 % Rates
 Z_im_us = (imss_us);
@@ -70,7 +70,7 @@ sigma_unc_r1 = Sigma_sigma_us_r1 / sqrt(max(1e-6, 1 - rho_sigma_us_r1^2));
 sigma_unc_r2 = Sigma_sigma_us_r2 / sqrt(max(1e-6, 1 - rho_sigma_us_r2^2));
 mu_common    = (mu_sigma_us_r1 + mu_sigma_us_r2) / 2;
 sigma_unc_common = max(sigma_unc_r1, sigma_unc_r2);
-m_common = 3.0;
+m_common = 5.0;  % widened from 3.0 to cover filter range in log-sigma (7 was too wide)
 
 % Use tauchen with common parameters to get grid nodes
 % rho_common=0 and sigma_common=sigma_unc_common so that

@@ -16,3 +16,16 @@
 # Text clippings
 *.textClipping
 .DS_Store
+
+# Office lock files
+~$*
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Claude Code worktrees / local data
+.claude/
+
+# Python cache
+__pycache__/
+*.pyc

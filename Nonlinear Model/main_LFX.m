@@ -147,7 +147,7 @@ Rb_eu_ss   =Rb_eu_f(mu_us_ss);
 load exchange_rate_data.mat ln_eu_us_ss;
 load LFX_data2.mat mu_us;
 share = 1;
-target = [200;ln_eu_us_ss;mean((mu_us))];
+target = [200;ln_eu_us_ss;mean((mu_us))];  % target(1)=200: fix loan-demand intercept beta so Rb_us = Rm_us + 200 bps annualized in SS; this identifies sigma_us. target(2),(3) then identify sigma_eu and Theta_d. (Reframed from prior "EBP target" interpretation -- math identical.)
 %target = [56.5403;ln_eu_us_ss];
 x0 = [mu_eu_ss;mu_us_ss;Rd_eu_ss;Rd_us_ss;Rb_us_ss;bard_us;bard_eu/bard_us];
 [x,fval,exitflag,~]=fsolve(@(x) ...

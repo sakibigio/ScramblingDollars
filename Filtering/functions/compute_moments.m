@@ -240,6 +240,18 @@ end
 fclose(fid);
 % fprintf(fid, '\\end{tabular}\n');
 
+% Also write the no-suffix versions (Mod_Moments.tex, Mod_CIP_Moments.tex,
+% Mod_SwitchDev_Moments.tex) so the Overleaf report templates -- which
+% \input the no-suffix files -- always reflect the current run. Without
+% this duplication, the old March-26 stale files would silently linger.
+copyfile(fullfile(foldername, ['Mod_Moments'         mt_suffix '.tex']), ...
+         fullfile(foldername,  'Mod_Moments.tex'));
+copyfile(fullfile(foldername, ['Mod_CIP_Moments'     mt_suffix '.tex']), ...
+         fullfile(foldername,  'Mod_CIP_Moments.tex'));
+copyfile(fullfile(foldername, ['Mod_SwitchDev_Moments' mt_suffix '.tex']), ...
+         fullfile(foldername,  'Mod_SwitchDev_Moments.tex'));
+fprintf('Mirrored Mod_*_%s.tex to no-suffix files for report templates.\n', strrep(mt_suffix,'_',''));
+
 % % Add the units and notes
 % fprintf(fid, '\\begin{tablenotes}\n');
 % fprintf(fid, '\\small\n');
