@@ -147,16 +147,47 @@ Rb_eu_ss   =Rb_eu_f(mu_us_ss);
 load exchange_rate_data.mat ln_eu_us_ss;
 load LFX_data2.mat mu_us;
 share = 1;
-target = [200;ln_eu_us_ss;mean((mu_us))];  % target(1)=200: fix loan-demand intercept beta so Rb_us = Rm_us + 200 bps annualized in SS; this identifies sigma_us. target(2),(3) then identify sigma_eu and Theta_d. (Reframed from prior "EBP target" interpretation -- math identical.)
-%target = [56.5403;ln_eu_us_ss];
-x0 = [mu_eu_ss;mu_us_ss;Rd_eu_ss;Rd_us_ss;Rb_us_ss;bard_us;bard_eu/bard_us];
-[x,fval,exitflag,~]=fsolve(@(x) ...
-    feqm_calibrate(x,Echi_d,Echi_m,Rm_eu,Rm_us,ploss_eu,ploss_us,iota_eu,iota_us,lambda_eu,lambda_us,Theta_b,epsilon_b,Theta_d_eu,Theta_d_us,zeta_eu,zeta_us,M_eu,M_us,target,share),...
-    [x0;sigma_eu;sigma_us;Theta_d_us],optimoptions('fsolve','Display','off','TolFun',1e-12,'MaxFunEval',1e9,'MaxIter',1e6));
-sigma_eu = x(8);
-sigma_us = x(9);
-Theta_d_eu = x(10);
-Theta_d_us = x(10);
+
+% ---- Fix sigma_us and sigma_eu at the Markov ergodic mean ----
+% Analytical E[sigma | regime] = exp(mu + 0.5 * (Sigma / sqrt(1-rho^2))^2)
+% Regime AR(1) params (must stay in sync with lines 329-342 below)
+mu_r1_erg   = -0.7370; rho_r1_erg = 0.9723; Sig_r1_erg = 0.0445;
+mu_r2_erg   = -0.4914; rho_r2_erg = 0.1477; Sig_r2_erg = 0.6918;
+P_regime    = [0.9925 0.0075; 0.0979 0.9021];
+E_sig_r1    = exp(mu_r1_erg + 0.5 * (Sig_r1_erg / sqrt(1 - rho_r1_erg^2))^2);
+E_sig_r2    = exp(mu_r2_erg + 0.5 * (Sig_r2_erg / sqrt(1 - rho_r2_erg^2))^2);
+pi_r1       = P_regime(2,1) / (P_regime(2,1) + P_regime(1,2));
+pi_r2       = P_regime(1,2) / (P_regime(2,1) + P_regime(1,2));
+sigma_us_erg = pi_r1 * E_sig_r1 + pi_r2 * E_sig_r2;
+sigma_eu_erg = sigma_us_erg;   % symmetric: sigma_eu = sigma_us
+fprintf('Markov ergodic mean sigma_us = %.4f (pi_r1=%.4f, pi_r2=%.4f)\n', ...
+    sigma_us_erg, pi_r1, pi_r2);
+
+target_ebp_bps = 200;  % beta-fix: (Rb_us - Rm_us) * 1e4 * 12 = 200 bps annualized
+mu_us_data_mean_target = mean(mu_us);   % stash the data moment (diagnostic only)
+x0 = [mu_eu_ss; mu_us_ss; Rd_eu_ss; Rd_us_ss; Rb_us_ss; bard_us; bard_eu/bard_us; Theta_d_us];
+[x, fval, exitflag, ~] = fsolve(@(x) ...
+    feqm_calibrate_fixed_sigma(x, Echi_d, Echi_m, Rm_eu, Rm_us, ...
+        ploss_eu, ploss_us, iota_eu, iota_us, lambda_eu, lambda_us, ...
+        Theta_b, epsilon_b, zeta_eu, zeta_us, M_eu, M_us, ...
+        sigma_us_erg, sigma_eu_erg, target_ebp_bps, share), ...
+    x0, optimoptions('fsolve', 'Display', 'off', 'TolFun', 1e-12, ...
+                     'MaxFunctionEvaluations', 1e9, 'MaxIterations', 1e6));
+sigma_us    = sigma_us_erg;       % fixed at Markov ergodic mean
+sigma_eu    = sigma_eu_erg;       % fixed, symmetric
+Theta_d_eu  = x(8);
+Theta_d_us  = x(8);
+
+% Report diagnostics: log(e_euus) and log(mu_us) are now checks, not targets
+% (Attempts to enforce them jointly with beta-fix + fixed sigmas were infeasible.)
+[~, diag_ss] = feqm_calibrate_fixed_sigma(x, Echi_d, Echi_m, Rm_eu, Rm_us, ...
+    ploss_eu, ploss_us, iota_eu, iota_us, lambda_eu, lambda_us, ...
+    Theta_b, epsilon_b, zeta_eu, zeta_us, M_eu, M_us, ...
+    sigma_us_erg, sigma_eu_erg, target_ebp_bps, share);
+fprintf('SS diagnostics vs data: log(e_euus) = %+.4f (data %+.4f, diff %+.4f)\n', ...
+    diag_ss.log_e_euus, ln_eu_us_ss, diag_ss.log_e_euus - ln_eu_us_ss);
+fprintf('                        log(mu_us)  = %+.4f (data %+.4f, diff %+.4f)\n', ...
+    diag_ss.log_mu_us, mu_us_data_mean_target, diag_ss.log_mu_us - mu_us_data_mean_target);
 
 % Calculate SS
 [x,fval,exitflag,~]=fsolve(@(x) ...
@@ -326,20 +357,20 @@ Zprob_im_eu = 1    ;
 index1=1:N_sigma_us/2;
 index2=N_sigma_us/2+1:N_sigma_us;
 
-% % % Normal Regime:
-mu_sigma_us_r1 = -1.27 ;
-rho_sigma_us_r1 = 0.88 ;
-Sigma_sigma_us_r1 = 0.2;
+% % % Normal Regime:  (values from Filtering/data/MS_params.csv; Section 5.1 estimates)
+mu_sigma_us_r1 = -0.7370 ;
+rho_sigma_us_r1 = 0.9723 ;
+Sigma_sigma_us_r1 = 0.0445;
 m_sigma_us_r1 = 8.0   ;
-% 
-% % Volatile Regime
-mu_sigma_us_r2 = -0.799;
-rho_sigma_us_r2 = 0.61 ;
-Sigma_sigma_us_r2 = 0.9;
+%
+% % Volatile / Scrambling Regime
+mu_sigma_us_r2 = -0.4914;
+rho_sigma_us_r2 = 0.1477 ;
+Sigma_sigma_us_r2 = 0.6918;
 m_sigma_us_r2 = 2.5    ;
 
-% % Transition Probabilities
-P=[0.984 0.016; 0.061 0.939];
+% % Transition Probabilities  (P11=stay-in-normal; P22=stay-in-scrambling)
+P=[0.9925 0.0075; 0.0979 0.9021];
 
 % % % Normal Regime:
 % mu_sigma_us_r1 = -1.0;

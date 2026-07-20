@@ -15,8 +15,9 @@ sigma_us    = 0.20   ;  % scale coefficient 0.168
 
 
 %------------- Trading Coefficients ------------
-lambda_us   = 3.5   ;  % efficiency Euro market
-lambda_eu   = 3.5   ;  % efficiency $market
+% NOTE: lambda synced with Filtering calibration (Run 21, common lambda_us=lambda_eu=1.2778)
+lambda_us   = 1.2778 ;  % efficiency $market (was 3.5, updated for cross-model consistency)
+lambda_eu   = 1.2778 ;  % efficiency Euro market
 varrho      = 0.0   ;
 gamma       = 1;
 eta         = 0.5;
