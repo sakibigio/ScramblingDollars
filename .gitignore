@@ -1,31 +1,91 @@
-# MATLAB data files
-*.mat
+# macOS / editor
+.DS_Store
+Icon?
+._*
+*.swp
+*.swo
+*~
 
-# MATLAB temp files
+# MATLAB workspace / autosave
+*.mat
 *.asv
 
-# macOS
-.DS_Store
-
-# Dropbox conflicts
+# Dropbox / Office
 *conflicted copy*
-
-# EPS files (keep PDFs only)
-*.eps
-
-# Text clippings
-*.textClipping
-.DS_Store
-
-# Office lock files
+.dropbox
+.dropbox.attr
+.dropbox.cache
 ~$*
 
-# Jupyter checkpoints
-.ipynb_checkpoints/
-
-# Claude Code worktrees / local data
-.claude/
-
-# Python cache
+# Python
 __pycache__/
 *.pyc
+.ipynb_checkpoints/
+
+# Claude Code local data
+.claude/
+
+# Scratch / experiment logs and shell scripts
+_*.log
+_*.sh
+_*.txt
+_*.mat
+_*.csv
+_estimation_log*.txt
+muhp*.log
+Untitled*.ipynb
+Untitled Folder/
+
+# Snapshot / robustness result dumps
+_eta_sensitivity_baseline/
+Filtering/data/backup_*/
+Filtering/data/robustness/
+Filtering/data/LFX_datainputs*backup*.xlsx
+Filtering/data/LFX_datainputs_yeongyu.xlsx
+Filtering/data/*BEFORE_split*
+Filtering/data/*BASELINE*
+
+# Variant-suffix snapshot CSVs (keep only current MS_params.csv, MS_sigma_us_prob.csv, RW_shock.csv)
+Filtering/data/MS_params_eta*.csv
+Filtering/data/MS_params_muhp*.csv
+Filtering/data/MS_params_mureg*.csv
+Filtering/data/MS_params_leontief.csv
+Filtering/data/MS_params_backup.csv
+Filtering/data/MS_sigma_us_prob_eta*.csv
+Filtering/data/MS_sigma_us_prob_muhp*.csv
+Filtering/data/MS_sigma_us_prob_mureg*.csv
+Filtering/RW_shock_BASELINE.csv
+Filtering/RW_shock_DW.csv
+Filtering/RW_shock_eta*.csv
+Filtering/RW_shock_muhp.csv
+
+# Whitelist the small MAT files the pipeline needs to run
+!Filtering/data/LFX_data.mat
+!Filtering/data/LFX_data2.mat
+!Filtering/data/LFX_data3.mat
+!Filtering/data/LFX_datamoments.mat
+!Filtering/data/LFX_targets.mat
+!Filtering/data/M_curr.mat
+!Filtering/data/Z_im_us.mat
+!Filtering/data/Z_im_eu.mat
+!Filtering/data/calibration.mat
+!Filtering/data/dynare_calibration_param.mat
+!Filtering/data/initguess.mat
+!Filtering/data/filter_comparison_cd.mat
+!Filtering/data/filter_comparison_leontief.mat
+!Filtering/data/robustness_iota.mat
+!Filtering/data/robustness_ploss.mat
+!Filtering/exchange_rate_data.mat
+!Filtering/dynare_calibration_param.mat
+!Filtering/functions/LFX_datamoments.mat
+!Filtering/functions/LFX_targets.mat
+!Filtering/functions/dynare_calibration_param.mat
+!Nonlinear Model/*.mat
+
+# Generated output figures
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.eps
+Filtering/joint_filter_DW.png

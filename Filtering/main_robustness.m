@@ -23,7 +23,7 @@ addpath('plotting');
 
 % --- Flags ---
 do_estimate_iota   = 0;
-do_estimate_ploss  = 1;
+do_estimate_ploss  = 0;
 do_plot_iota       = 1;
 do_plot_ploss      = 1;
 run_julia          = 0;    % set 0 to skip per-pair Markov estimation
