@@ -67,7 +67,19 @@ x_lab = '$\sigma_{us}$';
 % Limit Graph
 
 %limsigmas=[sigma_us_vec(1) sigma_us_vec(1)+0.6*(sigma_us_vec(end)-sigma_us_vec(1))];
-limsigmas=[sigma_us_vec(1) sigma_us_vec(end-10)];
+% Policy panels (b)-(f): x-range runs from the grid minimum to the 90th
+% percentile of the JOINT invariant distribution of sigma* (both regimes;
+% the two regime blocks share one sigma grid, so the overall marginal is
+% invpp1 + invpp2). The invariant-distribution panel (a) keeps the full
+% grid range (limsigmas_full) so the reader can see the tail being trimmed.
+limsigmas_full = [sigma_us_vec(1) sigma_us_vec(end)];
+sig_grid = sigma_us_vec(index1);
+w_mix    = invpp1(:) + invpp2(:);
+cw       = cumsum(w_mix) / sum(w_mix);
+q90      = sig_grid(find(cw >= 0.90, 1, 'first'));
+limsigmas = [sigma_us_vec(1) q90];
+fprintf('Policy-panel x-range: [%.4f, %.4f]  (0-90%% of joint invariant distribution)\n', ...
+    limsigmas(1), limsigmas(2));
 
 
 figure('Name','US Liquidity Ratio','NumberTitle','off'); % Liquidity Ratios
@@ -438,7 +450,7 @@ end
 figure('Name','Invariants','NumberTitle','off');
 area(sigma_us_vec(index1),invp1/max([invp1; invp2]),'FaceAlpha',0.5,'FaceColor',color_base, 'DisplayName', 'Normal Regime'); hold on;
 area(sigma_us_vec(index2),invp2/max([invp1; invp2]),'FaceAlpha',0.5,'FaceColor',color_base2); hold on;
-xlim(limsigmas);
+xlim(limsigmas_full);   % panel (a) keeps the full grid range (see limsigmas def)
 xlabel(x_lab,'interpreter','latex');
 formataxis(gca);
 h=legend('Normal Regime','Scrambling Regime','color','none','box','off','location','northeast','FontSize',20,'AutoUpdate', 'off');
