@@ -73,6 +73,10 @@ x_lab = '$\sigma_{us}$';
 % invpp1 + invpp2). The invariant-distribution panel (a) keeps the full
 % grid range (limsigmas_full) so the reader can see the tail being trimmed.
 limsigmas_full = [sigma_us_vec(1) sigma_us_vec(end)];
+% Panel (a) display cap: truncate the invariant-distribution panel at
+% sigma* = 7. Display only — the invariant distribution and all moments
+% are computed on the full grid.
+limsigmas_inv = [sigma_us_vec(1) min(7, sigma_us_vec(end))];
 sig_grid = sigma_us_vec(index1);
 w_mix    = invpp1(:) + invpp2(:);
 cw       = cumsum(w_mix) / sum(w_mix);
@@ -450,7 +454,7 @@ end
 figure('Name','Invariants','NumberTitle','off');
 area(sigma_us_vec(index1),invp1/max([invp1; invp2]),'FaceAlpha',0.5,'FaceColor',color_base, 'DisplayName', 'Normal Regime'); hold on;
 area(sigma_us_vec(index2),invp2/max([invp1; invp2]),'FaceAlpha',0.5,'FaceColor',color_base2); hold on;
-xlim(limsigmas_full);   % panel (a) keeps the full grid range (see limsigmas def)
+xlim(limsigmas_inv);   % panel (a): capped at sigma* = 7 for display (see limsigmas_inv def)
 xlabel(x_lab,'interpreter','latex');
 formataxis(gca);
 h=legend('Normal Regime','Scrambling Regime','color','none','box','off','location','northeast','FontSize',20,'AutoUpdate', 'off');
