@@ -19,11 +19,18 @@
 % [1] Solves for Steady State of the model..
 % [2] check interior solutions
 
-%% Preserve matching_type through clear
+%% Preserve matching_type (+ optional test-driver flags) through clear
 if ~exist('matching_type', 'var')
     matching_type = 1;  % 0 = Leontief, 1 = Cobb-Douglas (default)
 end
-save('temp_matching_type.mat', 'matching_type');
+% Optional flags a test driver may set (see run_lfx_config.m). Defaults
+% reproduce the original behavior exactly.
+if ~exist('lfx_printit','var'),    lfx_printit    = 1;  end
+if ~exist('lfx_foldername','var'), lfx_foldername = ''; end  % '' = Overleaf default
+if ~exist('lfx_tag','var'),        lfx_tag        = ''; end
+if ~exist('lfx_target_ebp','var'), lfx_target_ebp = 200; end % SS bond-premium target (bps)
+save('temp_matching_type.mat', 'matching_type', 'lfx_printit', ...
+     'lfx_foldername', 'lfx_tag', 'lfx_target_ebp');
 
 clear; close all;
 
@@ -53,9 +60,16 @@ else
     warning('Unknown user: %s. Figures will not be saved to Overleaf.', username);
     foldername = './';
 end
+% Test-driver overrides: redirect ALL file output away from Overleaf.
+% (compute_moments writes .tex tables to foldername UNGUARDED by printit,
+%  so redirecting foldername is the only safe way to run tests.)
+if ~isempty(lfx_foldername)
+    foldername = lfx_foldername;
+    if ~endsWith(foldername, filesep), foldername = [foldername filesep]; end
+end
 if ~exist(foldername, 'dir'); mkdir(foldername); end
 
-printit=1;
+printit = lfx_printit;
 plotit= 0;
 
 tic;

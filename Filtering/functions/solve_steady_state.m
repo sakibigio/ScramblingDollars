@@ -90,7 +90,11 @@ Rb_eu_ss   =Rb_eu_f(mu_us_ss);
 load exchange_rate_data.mat ln_eu_us_ss;
 load LFX_data2.mat mu_us;
 share = 1;
-target = [200;ln_eu_us_ss;mean((mu_us))];
+% Bond-premium calibration target (bps). Driver-settable via lfx_target_ebp
+% (preserved through main_LFX's clear); default 200 reproduces the paper.
+if ~exist('lfx_target_ebp','var'), lfx_target_ebp = 200; end
+target = [lfx_target_ebp;ln_eu_us_ss;mean((mu_us))];
+fprintf('[solve_steady_state] EBP calibration target = %.0f bps\n', lfx_target_ebp);
 %target = [56.5403;ln_eu_us_ss];
 x0 = [mu_eu_ss;mu_us_ss;Rd_eu_ss;Rd_us_ss;Rb_us_ss;bard_us;bard_eu/bard_us];
 [x,fval,exitflag,~]=fsolve(@(x) ...

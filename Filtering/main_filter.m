@@ -5,11 +5,22 @@
 %
 % Pipeline: main_filter.m → markov_estimation.jl → plot_regimes.m
 
-%% Setup - Preserve matching_type through clear
+%% Setup - Preserve matching_type (+ optional driver flags) through clear
 if ~exist('matching_type', 'var')
     matching_type = 1;  % 0 = Leontief, 1 = Cobb-Douglas (default)
 end
-save('temp_matching_type.mat', 'matching_type');
+% Optional flags a driver may set before running (see run_main_filter_iota_tv.m).
+% Defaults reproduce the original behavior exactly.
+if ~exist('use_iota_tv','var'),  use_iota_tv  = 0;   end
+if ~exist('use_new_liq','var'),  use_new_liq  = 0;   end
+if ~exist('iota_premium','var'), iota_premium = NaN; end
+if ~exist('printit','var'),      printit      = 1;   end
+if ~exist('run_julia','var'),    run_julia    = 1;   end
+if ~exist('do_regimes','var'),   do_regimes   = 1;   end
+if ~exist('cfg_tag','var'), cfg_tag = ''; end
+if ~exist('do_plot_baseline','var'), do_plot_baseline = 1; end
+save('temp_matching_type.mat', 'matching_type', 'use_iota_tv', 'use_new_liq', ...
+     'iota_premium', 'printit', 'run_julia', 'do_regimes', 'cfg_tag', 'do_plot_baseline');
 
 %% Setup
 clear; close all;
@@ -26,22 +37,23 @@ addpath('utils');
 addpath('data');
 addpath('plotting');
 
-% Print/plot options
-printit =  1;
+% Print/plot options.  printit / run_julia / do_regimes may be preset by a
+% driver before running; the guards below keep the original defaults otherwise.
+if ~exist('printit','var'), printit = 1; end
 plotdata = 0;
 printver = 0;
 
 % Plotting flags (set to 1 to enable)
-do_plot_baseline    = 1;  % Main filter results
+if ~exist('do_plot_baseline','var'), do_plot_baseline = 1; end  % Main filter results
 do_plot_diagnostics = 0;  % Diagnostic plots
 do_counterfactual   = 0;  % Counterfactual analysis (not implemented)
 do_sensitivity      = 0;  % Sensitivity analysis (not implemented)
-do_regimes          = 1;  % Plot paper results
+if ~exist('do_regimes','var'), do_regimes = 1; end  % Plot paper results
 plot_baseline_curr  = 0;  % Baseline plots for other currencies
 
 
 % Run markov_estimation.jl automatically after filtering
-run_julia = 1;  % Set to 1 to run Julia automatically
+if ~exist('run_julia','var'), run_julia = 1; end  % Set to 1 to run Julia automatically
 
 % Liquidity-ratio baseline correction:
 %   When use_mu_baseline = 1, the filter uses
@@ -138,6 +150,44 @@ else
     mubar_eu_t = zeros(T,1);
 end
 
+% NOTE: the liquidity-ratio swap (use_new_liq) is applied further below, right
+% after the "Initialize data" reload of LFX_data.mat — otherwise that reload
+% would overwrite it.
+
+%% Time-varying iota (optional; default OFF = original constant-iota behavior)
+% Set  use_iota_tv = 1  and  iota_premium = <decimal>  in the workspace BEFORE
+% running to feed  iota_t = (DW - Tbill corridor)_t + premium  into the filter
+% instead of the constant iota_ss.  The per-period value is assigned to
+% iota_us / iota_eu at the top of each filter loop, so every Chi/Echi call
+% downstream picks it up unchanged.
+if ~exist('use_iota_tv','var'), use_iota_tv = 0; end
+iota_us_vec = iota_us * ones(T,1);
+iota_eu_vec = iota_eu * ones(T,1);
+if use_iota_tv == 1
+    if ~exist('iota_premium','var') || ~isfinite(iota_premium)
+        error('use_iota_tv=1 requires a finite iota_premium (decimal, annualized).');
+    end
+    Siv = load('data/iota_corridor_monthly.mat');
+    sp  = Siv.iota_sprd_dec;  cv = Siv.cover_mask;
+    f0  = find(cv,1);  l0 = find(cv,1,'last');
+    sp(1:f0-1)   = sp(f0);        % hold-first (pre-coverage lead)
+    sp(l0+1:end) = sp(l0);        % hold-last  (post-coverage tail)
+    bad = ~isfinite(sp);
+    if any(bad)
+        gi = find(~bad);
+        sp(bad) = interp1(gi, sp(gi), find(bad), 'linear', 'extrap');
+    end
+    if numel(sp) ~= T
+        error('iota_corridor_monthly length (%d) ~= T (%d).', numel(sp), T);
+    end
+    iota_t_ann  = sp + iota_premium;              % annualized decimal
+    iota_us_vec = iota_t_ann / freq / pi_us_ss;   % per-period, model units
+    iota_eu_vec = iota_t_ann / freq / pi_eu_ss;
+    fprintf(['Time-varying iota ON: premium=%.5f, iota_t (ann) mean=%.4f ' ...
+             'range [%.4f, %.4f]\n'], iota_premium, mean(iota_t_ann), ...
+             min(iota_t_ann), max(iota_t_ann));
+end
+
 % Plot formats
 FSize = 20;
 formataxis = @(x) set(x, 'Fontname', 'Times', 'FontWeight', 'normal', 'Fontsize', FSize, 'Box', 'Off', 'PlotBoxAspectRatio', [1 0.75 1]);
@@ -196,6 +246,31 @@ end
 if mu_minus_lcr == 1
     mu_us = mu_minus_lcr_level(mu_us, LCR_us);
 end
+
+%% Optional: swap in the NEW US liquidity ratio  mu_us = log(LiqRatio H_18).
+% Applied HERE (after the LFX_data reload + transforms above) so it is not
+% overwritten.  Must match whatever the calibration was estimated with, or the
+% parameters are being applied to a different mu than they were fit to.
+if use_new_liq == 1
+    Lq = load('data/liq_ratio_monthly.mat');
+    mn = Lq.mu_us_new;  cq = Lq.cover_mask;
+    fq = find(cq,1);  lq = find(cq,1,'last');
+    mn(1:fq-1)   = mn(fq);      % hold-first
+    mn(lq+1:end) = mn(lq);      % hold-last
+    bb = ~isfinite(mn);
+    if any(bb)
+        gi = find(~bb);
+        mn(bb) = interp1(gi, mn(gi), find(bb), 'linear', 'extrap');
+    end
+    if numel(mn) ~= numel(mu_us)
+        error('liq_ratio_monthly length (%d) ~= mu_us length (%d).', numel(mn), numel(mu_us));
+    end
+    mu_us_orig = mu_us;
+    mu_us      = mn;
+    fprintf('Liquidity ratio SWAPPED (H_18): mu_us mean %.3f -> %.3f, range [%.3f, %.3f]\n', ...
+        mean(mu_us_orig), mean(mu_us), min(mu_us), max(mu_us));
+end
+
 endopath = [mu_us mu_eu Rb_Rm cip];
 exopath = [im_eu im_us M_us M_eu];
 
@@ -264,6 +339,11 @@ if matching_type == 1
 end
 
 for tt = 1:T
+    % Time-varying iota: assign this period's value so every Chi/Echi call
+    % below uses it (identical to the constant case when use_iota_tv = 0).
+    iota_us = iota_us_vec(tt);
+    iota_eu = iota_eu_vec(tt);
+
     % Setup targets
     if matching_type == 0
         BP_us_taget = min_test_us + (Rb_Rm(tt) - min(Rb_Rm)) * abs_scale;
@@ -621,6 +701,7 @@ for cc = 1:numel(curlist)
     eval(['Rm_c=Rm_' curlist{cc} ';']);
     
     for tt = 1:T
+        iota_eu = iota_eu_vec(tt);   % time-varying iota (constant if OFF)
         if use_mu_baseline == 1
             mu_eu_yt = exp(mu_eu(tt)) - mubar_eu_t(tt);
         else
@@ -746,7 +827,7 @@ for tt2 = 1:T
     else
         mu_arg = exp(mu_us(tt2));
     end
-    model_ted(tt2) = Chi_p_psi(mu_arg, ploss_us, sigma_us_t(tt2), iota_us, lambda_us, eta, matching_type, varrho) * abs_scale;
+    model_ted(tt2) = Chi_p_psi(mu_arg, ploss_us, sigma_us_t(tt2), iota_us_vec(tt2), lambda_us, eta, matching_type, varrho) * abs_scale;
     if matching_type == 0
         data_ted(tt2) = min_test_us + (TED_s_us_t(tt2) - min(TED_s_us_t)) * abs_scale;
     else

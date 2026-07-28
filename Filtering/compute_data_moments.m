@@ -138,7 +138,7 @@ fprintf('Wrote %s\n', filename);
 % Also the CIP-only sub-table (only CIP row, as in Mod_CIP_Moments_cd.tex)
 filename_cip = fullfile(foldername, 'Data_CIP_Moments.tex');
 fid = fopen(filename_cip, 'wt');
-fprintf(fid, ' \\ $\\mathcal {DLP} $(data) & %.1f & %.2f & %.1f & %.1f &  \\{ %.2f, %.2f \\} & %.1f \\\\ \n', m_CIP);
+fprintf(fid, ' \\ CIP (data) & %.1f & %.2f & %.1f & %.1f &  \\{ %.2f, %.2f \\} & %.1f \\\\ \n', m_CIP);  % label fixed: data series is observed CIP; DLP is the model object
 fclose(fid);
 fprintf('Wrote %s\n', filename_cip);
 

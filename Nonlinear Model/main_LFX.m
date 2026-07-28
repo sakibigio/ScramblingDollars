@@ -6,15 +6,40 @@
 % TO DO LIST:
 % [1] Solves for Steady State of the model..
 % [2] check interior solutions
+% Preserve optional driver overrides through the clear below (see run_nlm_config.m).
+% Defaults (NaN / printit=1) reproduce the original behavior exactly.
+if ~exist('nlm_printit','var'),  nlm_printit  = 1;   end
+if ~exist('nlm_lambda','var'),   nlm_lambda   = NaN; end
+if ~exist('nlm_eta','var'),      nlm_eta      = NaN; end
+if ~exist('nlm_sigma_us','var'), nlm_sigma_us = NaN; end
+if ~exist('nlm_sigma_eu','var'), nlm_sigma_eu = NaN; end
+if ~exist('nlm_iota_ann','var'), nlm_iota_ann = NaN; end
+if ~exist('nlm_tag','var'),      nlm_tag      = '';  end
+% Markov-regime / grid controls (NaN or 0 = keep the hardcoded values below)
+if ~exist('nlm_load_markov','var'), nlm_load_markov = 0;   end  % 1 = read MS_sigma_us_params.csv
+if ~exist('nlm_m_r1','var'),        nlm_m_r1        = NaN; end  % tauchen width, normal regime
+if ~exist('nlm_m_r2','var'),        nlm_m_r2        = NaN; end  % tauchen width, scrambling regime
+if ~exist('nlm_N_sigma','var'),     nlm_N_sigma     = NaN; end  % grid points (must be even)
+save('temp_nlm_cfg.mat','nlm_printit','nlm_lambda','nlm_eta', ...
+     'nlm_sigma_us','nlm_sigma_eu','nlm_iota_ann','nlm_tag', ...
+     'nlm_load_markov','nlm_m_r1','nlm_m_r2','nlm_N_sigma');
+
 clear; close all;%
 
-if strcmp(getenv('HOME'),'/Users/sakiclaudia')
-    foldername='/Users/sakiclaudia/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion/quantfigs/';
+load('temp_nlm_cfg.mat'); delete('temp_nlm_cfg.mat');
+
+[~, username] = system('whoami');
+username = strtrim(username);
+if strcmp(username, 'sakibigio')
+    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion/quantfigs/';
+elseif strcmp(username, 'sakiclaudia')
+    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion/quantfigs/';
 else
-    foldername='/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion/quantfigs/';
+    warning('Unknown user: %s. Figures will not be saved to Overleaf.', username);
+    foldername = './';
 end
 
-printit=1;
+printit = nlm_printit;   % driver-settable; 0 keeps the Overleaf figs untouched
 plotit= 0;
 
 tic;
@@ -41,6 +66,21 @@ pi_eu_ss = 1;
 pi_us_ss = 1;
 load dynare_calibration_param.mat;
 LFX_params_cd_v3;
+
+%% Optional overrides from the FILTERING calibration (NaN = keep file value).
+% iota is supplied ANNUALIZED (decimal) and converted to the model's
+% per-period convention, matching iota = (iw - im)/pi_ss used above.
+if isfinite(nlm_lambda),   lambda_us = nlm_lambda;  lambda_eu = nlm_lambda; end
+if isfinite(nlm_eta),      eta       = nlm_eta;     end
+if isfinite(nlm_sigma_us), sigma_us  = nlm_sigma_us; end
+if isfinite(nlm_sigma_eu), sigma_eu  = nlm_sigma_eu; end
+if isfinite(nlm_iota_ann)
+    iota_us = nlm_iota_ann / freq / pi_us_ss;
+    iota_eu = nlm_iota_ann / freq / pi_eu_ss;
+end
+fprintf(['[NLM cfg %s] lambda=%.4f  eta=%.4f  sigma_us=%.4f  sigma_eu=%.4f  ' ...
+         'iota_us=%.6f (%.0f bps ann)\n'], nlm_tag, lambda_us, eta, sigma_us, ...
+         sigma_eu, iota_us, iota_us*freq*1e4);
 
 % Theta_b = 100^(-1/-35);
 Theta_b = 1;
@@ -154,6 +194,20 @@ share = 1;
 mu_r1_erg   = -0.7370; rho_r1_erg = 0.9723; Sig_r1_erg = 0.0445;
 mu_r2_erg   = -0.4914; rho_r2_erg = 0.1477; Sig_r2_erg = 0.6918;
 P_regime    = [0.9925 0.0075; 0.0979 0.9021];
+
+% If a driver asked for the CURRENT Markov estimates, use them here too -- this
+% block sets the ergodic sigma at which the steady state is calibrated, and must
+% not be left on the stale hardcoded values while the grid below uses new ones.
+if nlm_load_markov == 1
+    pf_erg = fullfile('..','Filtering','data','MS_sigma_us_params.csv');
+    T_erg  = readtable(pf_erg);
+    ge     = @(nm) T_erg.value(strcmp(T_erg.param, nm));
+    mu_r1_erg = log(ge('sigma_ss_nor'));  rho_r1_erg = ge('rho_nor');  Sig_r1_erg = ge('Sigma_nor');
+    mu_r2_erg = log(ge('sigma_ss_scr'));  rho_r2_erg = ge('rho_scr');  Sig_r2_erg = ge('Sigma_scr');
+    p12e = ge('trans_nor'); p21e = ge('trans_scr');
+    P_regime = [1-p12e p12e; p21e 1-p21e];
+    fprintf('[NLM] ergodic-sigma block refreshed from %s\n', pf_erg);
+end
 E_sig_r1    = exp(mu_r1_erg + 0.5 * (Sig_r1_erg / sqrt(1 - rho_r1_erg^2))^2);
 E_sig_r2    = exp(mu_r2_erg + 0.5 * (Sig_r2_erg / sqrt(1 - rho_r2_erg^2))^2);
 pi_r1       = P_regime(2,1) / (P_regime(2,1) + P_regime(1,2));
@@ -372,6 +426,42 @@ m_sigma_us_r2 = 2.5    ;
 % % Transition Probabilities  (P11=stay-in-normal; P22=stay-in-scrambling)
 P=[0.9925 0.0075; 0.0979 0.9021];
 
+%% Optional: refresh the regime process from the CURRENT Markov estimation and
+%  widen/resize the sigma grid.  Defaults leave everything above untouched.
+if nlm_load_markov == 1
+    pf = fullfile('..','Filtering','data','MS_sigma_us_params.csv');
+    Tms = readtable(pf);
+    gv  = @(nm) Tms.value(strcmp(Tms.param, nm));
+    mu_sigma_us_r1    = log(gv('sigma_ss_nor'));
+    mu_sigma_us_r2    = log(gv('sigma_ss_scr'));
+    rho_sigma_us_r1   = gv('rho_nor');
+    rho_sigma_us_r2   = gv('rho_scr');
+    Sigma_sigma_us_r1 = gv('Sigma_nor');
+    Sigma_sigma_us_r2 = gv('Sigma_scr');
+    p12 = gv('trans_nor');   % normal -> scrambling
+    p21 = gv('trans_scr');   % scrambling -> normal
+    P   = [1-p12, p12; p21, 1-p21];
+    fprintf('[NLM] Markov params loaded from %s\n', pf);
+end
+if isfinite(nlm_m_r1),    m_sigma_us_r1 = nlm_m_r1; end
+if isfinite(nlm_m_r2),    m_sigma_us_r2 = nlm_m_r2; end
+if isfinite(nlm_N_sigma), N_sigma_us    = nlm_N_sigma; end
+
+% Report the grid span each regime will cover (tauchen: mu +/- m * uncond std)
+sd1 = Sigma_sigma_us_r1/sqrt(1-rho_sigma_us_r1^2);
+sd2 = Sigma_sigma_us_r2/sqrt(1-rho_sigma_us_r2^2);
+fprintf(['[NLM grid] N=%d | normal: logs in [%.3f, %.3f] -> sigma [%.3f, %.3f] (m=%.1f)\n' ...
+         '           scrambling: logs in [%.3f, %.3f] -> sigma [%.3f, %.3f] (m=%.1f)\n'], ...
+    N_sigma_us, ...
+    mu_sigma_us_r1-m_sigma_us_r1*sd1, mu_sigma_us_r1+m_sigma_us_r1*sd1, ...
+    exp(mu_sigma_us_r1-m_sigma_us_r1*sd1), exp(mu_sigma_us_r1+m_sigma_us_r1*sd1), m_sigma_us_r1, ...
+    mu_sigma_us_r2-m_sigma_us_r2*sd2, mu_sigma_us_r2+m_sigma_us_r2*sd2, ...
+    exp(mu_sigma_us_r2-m_sigma_us_r2*sd2), exp(mu_sigma_us_r2+m_sigma_us_r2*sd2), m_sigma_us_r2);
+
+% N_sigma_us may have changed -> rebuild the regime index vectors.
+index1 = 1:N_sigma_us/2;
+index2 = N_sigma_us/2+1:N_sigma_us;
+
 % % % Normal Regime:
 % mu_sigma_us_r1 = -1.0;
 % rho_sigma_us_r1 = 0.975;
@@ -397,10 +487,17 @@ elseif Rouwenhorst_method==1
     [Z_sigma_us_r1,Zprob_sigma_us_r1] =discretizeAR1_Rouwenhorst(mu_sigma_us_r1*(1-rho_sigma_us_r1),rho_sigma_us_r1,Sigma_sigma_us_r1,N_sigma_us/2);
     [Z_sigma_us_r2,Zprob_sigma_us_r2] =discretizeAR1_Rouwenhorst(mu_sigma_us_r2,rho_sigma_us_r2,Sigma_sigma_us_r2,N_sigma_us/2);
 end
+% Invariant distributions.  NOTE: eig() does NOT order eigenvalues, so we must
+% select the eigenvector whose eigenvalue is nearest 1 (taking column 1 blindly
+% returns garbage once the grid is wide / the chain highly persistent).
 [eig_vecs1,eigs1]=eig(Zprob_sigma_us_r1');
-invp1=eig_vecs1(:,1)/(sum(eig_vecs1(:,1)));
+[~,j1] = min(abs(diag(eigs1)-1));
+invp1 = real(eig_vecs1(:,j1));  if sum(invp1)<0, invp1=-invp1; end
+invp1 = max(invp1,0);  invp1 = invp1/sum(invp1);
 [eig_vecs2,eigs2]=eig(Zprob_sigma_us_r2');
-invp2=eig_vecs2(:,1)/(sum(eig_vecs2(:,1)));
+[~,j2] = min(abs(diag(eigs2)-1));
+invp2 = real(eig_vecs2(:,j2));  if sum(invp2)<0, invp2=-invp2; end
+invp2 = max(invp2,0);  invp2 = invp2/sum(invp2);
 figure('Name','Invariant Distributions')
 area(exp(Z_sigma_us_r1),invp1,'FaceAlpha',0.5,'FaceColor','b'); hold on;
 area(exp(Z_sigma_us_r2),invp2,'FaceAlpha',0.5,'FaceColor','r'); hold on;
@@ -425,9 +522,29 @@ for ii=1:N_sigma_us/2
     Zprob_sigma_us(N_sigma_us/2+ii,:)=[P(2,1)*Zprob_sigma_us_r1(index_r2_to_r1(ii),:) P(2,2)*Zprob_sigma_us_r2(ii,:)];
 end
 [eig_vecs,eigs]=eig(Zprob_sigma_us');
-invp=eig_vecs(:,1)/(sum(eig_vecs(:,1)));
+[~,jj] = min(abs(diag(eigs)-1));       % eigenvalue nearest 1 (see note above)
+invp = real(eig_vecs(:,jj));  if sum(invp)<0, invp=-invp; end
+invp = max(invp,0);  invp = invp/sum(invp);
 invpp1=invp(1:N_sigma_us/2); invp1=invpp1/sum(invpp1);
 invpp2=invp(N_sigma_us/2+1:end); invp2=invpp2/sum(invpp2);
+
+%% Truncation diagnostic: how much invariant mass sits on the grid endpoints?
+% If the tails carry non-trivial mass the grid is clipping the distribution and
+% m_sigma_us_r* (and/or N_sigma_us) should be increased.
+tail_tol = 1e-4;
+fprintf('\n[NLM truncation check]\n');
+fprintf('  sigma grid: normal [%.3f, %.3f], scrambling [%.3f, %.3f]\n', ...
+    exp(min(Z_sigma_us_r1)), exp(max(Z_sigma_us_r1)), ...
+    exp(min(Z_sigma_us_r2)), exp(max(Z_sigma_us_r2)));
+fprintf('  invariant mass at endpoints: normal lo=%.3e hi=%.3e | scrambling lo=%.3e hi=%.3e\n', ...
+    invp1(1), invp1(end), invp2(1), invp2(end));
+if invp1(end) > tail_tol || invp2(end) > tail_tol
+    fprintf(2, '  >> RIGHT TAIL TRUNCATED (mass > %.0e at the top grid point): raise m_sigma_us_r*\n', tail_tol);
+else
+    fprintf('  >> right tail OK (mass < %.0e at the top grid point)\n', tail_tol);
+end
+fprintf('  E[sigma] normal=%.4f  scrambling=%.4f  (grid-weighted)\n', ...
+    exp(Z_sigma_us_r1(:))'*invp1(:), exp(Z_sigma_us_r2(:))'*invp2(:));
 figure('Name','Conditional Distributions')
 area(exp(Z_sigma_us_r1),invp1,'FaceAlpha',0.5,'FaceColor','b'); hold on;
 area(exp(Z_sigma_us_r2),invp2,'FaceAlpha',0.5,'FaceColor','r'); hold on;
