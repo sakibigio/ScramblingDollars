@@ -306,13 +306,15 @@ while condout>tol&&iterout<maxiterations
             pi_us_vec(ss)=Q_mat(ss,:)*p_us_vec_in(:)/p_us_vec(ss);
             pi_eu_vec(ss)=Q_mat(ss,:)*p_eu_vec_in(:)/p_eu_vec(ss);
             
-            % Policy Rates
-            Rm_eu         = im_eu/pi_eu_vec(ss);
-            Rm_us         = im_us/pi_us_vec(ss);
-            Rm_eu_vec(ss)=im_eu/pi_eu_vec(ss);
-            Rm_us_vec(ss)=im_us/pi_us_vec(ss);
-            iota_eu_vec(ss) = (iw_eu-im_eu)/pi_eu_vec(ss);
-            iota_us_vec(ss) = (iw_us-im_us)/pi_us_vec(ss);
+            % Policy Rates (Jensen-correct: expected inverse gross inflation)
+            pi_inv_eu_ss = Q_mat(ss,:)*(1./p_eu_vec_in(:))*p_eu_vec(ss);
+            pi_inv_us_ss = Q_mat(ss,:)*(1./p_us_vec_in(:))*p_us_vec(ss);
+            Rm_eu         = im_eu*pi_inv_eu_ss;
+            Rm_us         = im_us*pi_inv_us_ss;
+            Rm_eu_vec(ss)=im_eu*pi_inv_eu_ss;
+            Rm_us_vec(ss)=im_us*pi_inv_us_ss;
+            iota_eu_vec(ss) = (iw_eu-im_eu)*pi_inv_eu_ss;
+            iota_us_vec(ss) = (iw_us-im_us)*pi_inv_us_ss;
             
             % Steady State Liquidity Values
             theta_us_vec(ss)=theta(mu_us_vec(ss),ploss_us,sigma_us);

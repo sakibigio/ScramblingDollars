@@ -37,10 +37,15 @@ function F=feqm_vec(x,Echi_d,Echi_m,p_us_f,ploss_eu_vec,ploss_us_vec,sigma_eu_ve
         F(6,:) = nu_vec-Theta_d_us_vec.^(-1).*Theta_d_eu_vec;
         F(7,:) = d_us_vec-Theta_d_us_vec;
     end
-    F(8,:)    = Rm_eu_vec-im_eu_vec./pi_eu_vec;
-    F(9,:)    = Rm_us_vec-im_us_vec./pi_us_vec;
-    F(10,:)   = iota_eu_vec-(iw_eu_vec-im_eu_vec)./pi_eu_vec;
-    F(11,:)   = iota_us_vec-(iw_us_vec-im_us_vec)./pi_us_vec;
+    % Jensen-correct expected real returns: use E[p(X)/p(X')|X] (expected
+    % inverse gross inflation), not 1/E[p(X')/p(X)]. pi_*_vec (rows 12-13)
+    % remain expected gross inflation for reporting/moments.
+    pi_inv_eu = (Q_mat*(1./p_eu_vec(:)))'.*p_eu_vec;
+    pi_inv_us = (Q_mat*(1./p_us_vec(:)))'.*p_us_vec;
+    F(8,:)    = Rm_eu_vec-im_eu_vec.*pi_inv_eu;
+    F(9,:)    = Rm_us_vec-im_us_vec.*pi_inv_us;
+    F(10,:)   = iota_eu_vec-(iw_eu_vec-im_eu_vec).*pi_inv_eu;
+    F(11,:)   = iota_us_vec-(iw_us_vec-im_us_vec).*pi_inv_us;
     F(12,:)   = pi_eu_vec-(Q_mat*p_eu_vec(:))'./p_eu_vec; % p_eu_vec_in
     F(13,:)   = pi_us_vec-(Q_mat*p_us_vec(:))'./p_us_vec; % p_us_vec_in
     d_eu_vec  = Theta_d_eu_vec.*(Rd_eu_vec).^(1./zeta_eu);
