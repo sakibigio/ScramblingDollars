@@ -89,3 +89,14 @@ Filtering/RW_shock_muhp.csv
 *.jpeg
 *.eps
 Filtering/joint_filter_DW.png
+
+# Run logs, generated output, and pre-1M snapshot (2026-07 cleanup)
+Filtering/pipeline_*_log.txt
+Filtering/output/
+Filtering/backup_pre1M_20260727/
+Filtering/data/LFX_datainputs_pre1M_*.xlsx
+*.PREV
+# Working copy for the time-varying-iota robustness appendix (kept out of git;
+# its driver scripts live in Filtering/run_*iota_tv*.m)
+Filtering_iota_tv/
+Nonlinear Model/*conflicted copy*.mat
