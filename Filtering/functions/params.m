@@ -89,11 +89,13 @@ zeta_us = 1000;
 zeta_eu = 1000;
 
 % Adjustment to Euro rate (needed for CIP target)
-% Targets steady-state CIP = +20 bps/yr to match data (Data_CIP_Moments.tex: 20.6).
-% Negative value RAISES Rm_eu by |im_eu_adj| per month. With today's imss_eu=0.999336,
-% imss_us=0.999329, solving Rm_eu_ss^12 - Rm_us_ss^12 = 20e-4 gives the value below.
-% Earlier value was +0.0006 (lowering Rm_eu by 6 bps/mo), which produced CIP ≈ -70 bps.
-im_eu_adj = -0.000161;
+% Targets ergodic mean DLP = CIP deviation of ~20.4 bps/yr (paper: "20bps on
+% average, in line with du2018deviations"). Negative value RAISES Rm_eu by
+% |im_eu_adj| per month; ergodic E[DLP] moves ~one-for-one (x12e4 annualized).
+% Retuned 2026-07-29 for the Jensen-correct real returns (G07): the old value
+% -0.000161 hit 20.40 bps under 1/E[pi'] but 19.18 bps under E[1/pi'];
+% -0.0001712 restores ~20.4. (Steady-state CIP is unaffected by G07.)
+im_eu_adj = -0.0001712;
 
 %% Session override hook (used by compare_eta_calibrations.sh and estimate_params_4d.m)
 % Two override files supported (loaded in this order; later overrides win):
