@@ -22,9 +22,12 @@ fprintf('Free param: lambda  |  eta fixed at %.4f\n', eta_baseline);
 fprintf('========================================\n');
 
 %% Grid
-% Lower bound 0.06: below this the TED constraint TED > (1-eta)*iota binds
-% and the inversion has no admissible sigma.  10 uniform points.
-iota_grid = linspace(0.06, 0.12, 10);
+% Feasibility floor: the inversion requires max(TED) <= (1-eta)*iota, i.e.
+% iota >= 0.0350/(1-0.632) = 0.0951 at the baseline eta -- which is exactly
+% where the estimate sits (the bound binds). The grid therefore starts at the
+% baseline and explores upward; points below the floor are infeasible by
+% construction. 11 uniform points; the first equals the baseline iota_ss.
+iota_grid = linspace(0.0951, 0.1401, 11);
 N_grid    = numel(iota_grid);
 
 %% Sample selection for moment objective
@@ -36,6 +39,23 @@ idx_DW   = find(valid_DW);
 logmean_FF_d = log(mean(FF_n(idx_FF)));
 logmean_DW_d = log(mean(DW_n(idx_DW)));
 logmax_DW_d  = log(max(DW_n(idx_DW)));
+
+%% Baseline-criterion targets (mirror estimate_params_4d.m; w_cip = 0 there)
+NaN_bpus = (Rb_Rm == 0)    | isnan(Rb_Rm);
+NaN_bpeu = (Rb_Rm_eu == 0) | isnan(Rb_Rm_eu);
+tg = struct();
+tg.idx_bpus  = find(~NaN_bpus);
+tg.idx_bpeu  = find(~NaN_bpeu);
+tg.bpus_d_dm = Rb_Rm(tg.idx_bpus)    - mean(Rb_Rm(tg.idx_bpus));
+tg.bpeu_d_dm = Rb_Rm_eu(tg.idx_bpeu) - mean(Rb_Rm_eu(tg.idx_bpeu));
+tg.v_bpus    = max(var(tg.bpus_d_dm * abs_scale), 1e-12);
+tg.v_bpeu    = max(var(tg.bpeu_d_dm * abs_scale), 1e-12);
+tg.idx_ff    = idx_FF;
+tg.idx_dw    = idx_DW;
+tg.logmean_FF_d = logmean_FF_d;
+tg.logmean_DW_d = logmean_DW_d;   % data DW_n is a stock; compared to model DWS
+tg.w_bpus = 1.0; tg.w_bpeu = 1.0; tg.w_meanFF = 1.0; tg.w_meanDWS = 1.0;
+tg.w_corr = 0.0;   % baseline criterion is penalty-free (nopen_lcr spec, 2026-07-31)
 
 %% Inputs struct for run_filter_series
 in = struct();
@@ -78,11 +98,22 @@ for ii = 1:N_grid
     iota_g = iota_grid(ii);
     fprintf('\n--- (%d/%d) iota_ss = %.4f ---\n', ii, N_grid, iota_g);
 
-    % 1. Estimate lambda by fminsearch (eta fixed at baseline)
-    obj = @(lam) obj_lambda(lam, eta_baseline, iota_g, ploss_baseline, in, ...
-        idx_FF, idx_DW, logmean_FF_d, logmean_DW_d, logmax_DW_d);
-    x0 = lambda_baseline;
-    [lam_opt, fval, ef] = fminsearch(obj, x0, options);
+    % 1. Estimate lambda by fminsearch (eta fixed at baseline), using the
+    %    SAME criterion as the baseline estimation (estimate_params_4d.m)
+    %    restricted to lambda.  Multi-start: baseline lambda and, past the
+    %    first grid point, the previous grid point's optimum.
+    obj = @(lam) obj_lambda_baseline(lam, eta_baseline, iota_g, ploss_baseline, in, tg);
+    x0_list = lambda_baseline;
+    if ii > 1 && isfinite(rob_iota(ii-1).lambda)
+        x0_list = [lambda_baseline, rob_iota(ii-1).lambda];
+    end
+    fval = Inf; lam_opt = NaN; ef = NaN;
+    for jj = 1:numel(x0_list)
+        [lam_try, fval_try, ef_try] = fminsearch(obj, x0_list(jj), options);
+        if fval_try < fval
+            fval = fval_try; lam_opt = lam_try; ef = ef_try;
+        end
+    end
 
     fprintf('  lambda* = %.6f   obj = %.4e   ef = %d\n', lam_opt, fval, ef);
 
@@ -167,28 +198,4 @@ for ii = 1:N_grid
         rob_iota(ii).logmax_DW_m  - logmax_DW_d);
 end
 
-%% ===== Local objective =====
-function obj = obj_lambda(lam, eta_fix, iot, ploss_fix, in, ...
-        idx_FF, idx_DW, logmean_FF_d, logmean_DW_d, logmax_DW_d)
-    pen = 0;
-    if lam <= 0.05, pen = pen + 1e6 * (1 + abs(0.05-lam)); end
-    if lam >= 10,   pen = pen + 1e6 * (1 + abs(lam-10));   end
-    if pen > 0, obj = pen; return; end
-
-    try
-        out = run_filter_series(lam, eta_fix, iot, ploss_fix, in);
-    catch
-        obj = 1e9; return;
-    end
-
-    FF = out.FF_us_t; DW = out.DW_us_t;
-    if any(FF(idx_FF) <= 0) || any(DW(idx_DW) <= 0) || ...
-       any(~isfinite(FF(idx_FF))) || any(~isfinite(DW(idx_DW)))
-        obj = 1e8; return;
-    end
-
-    m1 = log(mean(FF(idx_FF))) - logmean_FF_d;
-    m2 = log(mean(DW(idx_DW))) - logmean_DW_d;
-    m3 = log(max (DW(idx_DW))) - logmax_DW_d;
-    obj = m1^2 + m2^2 + m3^2;
-end
+% Objective: functions/obj_lambda_baseline.m (baseline criterion, lambda only).

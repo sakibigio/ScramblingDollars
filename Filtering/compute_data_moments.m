@@ -145,8 +145,10 @@ fprintf('Wrote %s\n', filename_cip);
 %% ---- Data analog of the model regime-transition FX jump ----------------
 % Mirrors Mod_SwitchDev_Moments.tex, which stores [Dev_r1->r2, Dev_r2->r1] in
 % bps with + = dollar appreciation (model rate_scale = 1e4, a one-time level
-% jump, NOT annualized). EU/US is USD per EUR, so a LOWER level = stronger
-% dollar; hence data dollar appreciation = -dlog(EU/US)*1e4 bps.
+% jump, NOT annualized). e_euus is EUR per USD (verified against EUR/USD
+% quotes: 2001-07=1.17, 2008-07=0.64), so a HIGHER level = stronger dollar;
+% hence data dollar appreciation = +dlog(e_euus)*1e4 bps. (Sign convention
+% fixed 2026-07-31; the earlier minus sign flipped all transition stats.)
 %
 % We use ALL scrambling episodes (MIN_EP = 1): contiguous runs of prob_scr>0.5.
 % Both the FX appreciation and the CIP widening are positive in sign over the
@@ -157,7 +159,7 @@ fprintf('Wrote %s\n', filename_cip);
 % is dispersed across episodes, so we report the MEDIAN as the headline (robust
 % to the few large-magnitude episodes); the mean is printed for reference.
 MIN_EP   = 1;                                       % min episode length (months)
-appr_bps = -[NaN; diff(log(e_euus))] * abs_scale;   % dollar appreciation, bps
+appr_bps = [NaN; diff(log(e_euus))] * abs_scale;    % dollar appreciation, bps (e_euus = EUR per USD: rising e = stronger dollar)
 
 dd       = diff([0; double(in_scr); 0]);
 ep_start = find(dd == 1);

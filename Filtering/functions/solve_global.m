@@ -80,14 +80,17 @@ pi_us_ss = 1;
 x0 = [mu_eu_ss;mu_us_ss;Rd_eu_ss;Rd_us_ss;Rb_us_ss;bard_us;bard_eu/bard_us;Rm_eu_ss;Rm_us_ss;iota_eu_vec(1);iota_us_vec(1);pi_eu_ss;pi_us_ss;p_eu_ss;p_us_ss];
 x0 = kron(x0,ones(1,N_s));
 
-% Add right after line 78:
-% if isfile('data/initguess.mat')
-%     tmp = load('data/initguess.mat');
-%      if isfield(tmp, 'x0') && all(size(tmp.x0) == size(x0))
-%         x0 = tmp.x0;
-%         fprintf('Loaded warm start from initguess.mat\n');
-%     end
-% end
+% Warm start: reuse the converged solution from a previous run if the grid
+% size matches (initguess.mat is re-saved after every successful solve below).
+if isfile(fullfile('data','initguess.mat'))
+    tmp = load(fullfile('data','initguess.mat'));
+    if isfield(tmp, 'x0') && all(size(tmp.x0) == size(x0))
+        x0 = tmp.x0;
+        fprintf('Warm start: loaded x0 from data/initguess.mat\n');
+    else
+        fprintf('Warm start skipped: initguess.mat size mismatch, using SS guess\n');
+    end
+end
 
 %load initguess.mat;
 % solve transition path

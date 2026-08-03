@@ -53,6 +53,38 @@ w_meanDWS  = 1.0;   % DW STOCK level (model stock vs data stock -- like-with-lik
 % reasonable moment-fit cost.
 w_corr     = 100.0;
 
+% Identification-penalty mode (all unit-free, so w_corr is comparable across modes):
+%   'corr'  : corr(log sigma_us, mu_us)^2      -- original orthogonality condition
+%   'trend' : corr(log sigma_us, t)^2          -- R^2 of a linear time trend in
+%             log sigma; imposes that the filtered stress process has no secular
+%             trend (stationarity of the structural shock) without referencing mu.
+%   'kpss'  : KPSS-type partial-sum statistic  -- sum(S_t^2)/(T^2*var), S_t the
+%             partial sums of demeaned log sigma; penalizes ANY low-frequency
+%             drift (level nonstationarity), not just a linear trend.
+% A driver script may predefine orth_mode before running this file.
+if ~exist('orth_mode', 'var'), orth_mode = 'corr'; end
+% A driver may also override the penalty weight (e.g. 0 to drop the penalty).
+if exist('w_corr_override', 'var') && ~isempty(w_corr_override)
+    w_corr = w_corr_override;
+end
+fprintf('Identification penalty mode: %s (w=%.1f)\n', orth_mode, w_corr);
+
+% Fixed-eta mode: a driver may predefine eta_fix to pin eta at a constant
+% (e.g. 0.5 = symmetric Nash bargaining) and estimate only (lambda, iota).
+if ~exist('eta_fix', 'var'), eta_fix = []; end
+if ~isempty(eta_fix)
+    fprintf('Fixed-eta mode: eta = %.4f (2-D search over lambda, iota)\n', eta_fix);
+end
+
+% Conditional-amplification target (default OFF). When w_cond > 0, adds
+%   w_cond * ((mean(CIP_m|scr) - mean(CIP_m|nor)) - cond_diff_data)^2 / cond_diff_data^2
+% where months are classified scrambling/normal by P(scr) > 0.5 from the
+% committed baseline regime probabilities (data/MS_sigma_us_prob_cbase.csv,
+% rows start 2001-02 = series index 2). This feeds the paper's headline
+% UNTARGETED moment into the estimation transparently -- it identifies the
+% amplification role of lambda that the unconditional moments leave flat.
+if ~exist('w_cond', 'var'), w_cond = 0; end
+
 % Stock construction:  DWS_t = DW_t + (1 - delta_DWS_estim) * DWS_{t-1}
 delta_DWS_estim = 0.2;   % monthly depreciation rate (must match main_filter.m)
 
@@ -75,6 +107,9 @@ x0 = [ ...
     min(max(lambda_init, b_lambda(1) + 1e-3), b_lambda(2) - 1e-3), ...
     min(max(iota_ss,     b_iota(1)   + 1e-4), b_iota(2)   - 1e-4), ...
     min(max(eta_init,    b_eta(1)    + 1e-3), b_eta(2)    - 1e-3)];
+if ~isempty(eta_fix)
+    x0 = x0(1:2);   % 2-D search; eta pinned at eta_fix throughout
+end
 % ===========================================================
 
 %% Baseline correction (recompute if not already set up)
@@ -134,6 +169,20 @@ fprintf('Data std: CIP=%.2f bps, BPus(dm)=%.2f bps, BPeu(dm)=%.2f bps\n', ...
 fprintf('Data:     log mean DW = %.4f, log mean FF = %.4f, log(DW/FF) = %.4f\n', ...
     logmean_DW_d, logmean_FF_d, logratio_DF_d);
 
+%% Conditional-target setup (only when w_cond > 0)
+idx_scr = []; idx_nor = []; cond_diff_data_bps = NaN;
+if w_cond > 0
+    prob_tbl = readtable('data/MS_sigma_us_prob_cbase.csv');
+    % prob rows start 2001-02 -> series index offset +1
+    scr_mask_series = false(T_obs, 1);
+    scr_mask_series(1 + find(prob_tbl.prob_scr > 0.5)) = true;
+    idx_scr = intersect(idx_cip, find(scr_mask_series));
+    idx_nor = intersect(idx_cip, find(~scr_mask_series));
+    cond_diff_data_bps = (mean(cip(idx_scr)) - mean(cip(idx_nor))) * abs_sc;
+    fprintf('Conditional CIP target ON (w_cond=%.1f): %d scr / %d nor months, data diff = %.1f bps\n', ...
+        w_cond, numel(idx_scr), numel(idx_nor), cond_diff_data_bps);
+end
+
 %% TED-asymptote feasibility (varrho = 0 case)
 %   Model TED at sigma -> infty  =  (1-eta) * iota_ss / pi_ss     [per-period frac]
 %                                =  (1-eta) * iota_ss * 1e4 / pi_ss   [bps, since abs_sc=12e4]
@@ -148,9 +197,10 @@ fprintf('Asymptote constraint:  (1-eta)*iota_ss*1e4 > %.4f * %.2f = %.2f bps  (v
 
 % Quick check that the initial guess satisfies the constraint.
 % Now eta is free too -- bump iota if needed to satisfy at the starting eta.
-asy0 = (1 - x0(3)) * x0(2) * 1e4 / pi_us_ss;
+if isempty(eta_fix), eta0 = x0(3); else, eta0 = eta_fix; end
+asy0 = (1 - eta0) * x0(2) * 1e4 / pi_us_ss;
 if asy0 < ted_asymp_margin * max_ted_bps
-    iota_min_feasible = ted_asymp_margin * max_ted_bps / ((1 - x0(3)) * 1e4 / pi_us_ss);
+    iota_min_feasible = ted_asymp_margin * max_ted_bps / ((1 - eta0) * 1e4 / pi_us_ss);
     warning(['Initial guess violates asymptote constraint: ' ...
         '(1-eta)*iota*1e4=%.2f bps < %.2f bps. Bumping x0(iota) to %.4f.'], ...
         asy0, ted_asymp_margin * max_ted_bps, iota_min_feasible * 1.02);
@@ -169,12 +219,18 @@ obj_fun = @(x) estimate_obj_2d(x, ...
     w_cip, w_bpus, w_bpeu, w_meanDW, w_meanFF, w_ratioDF, w_meanDWS, w_corr, ...
     delta_DWS_estim, abs_sc, ...
     b_lambda, b_iota, b_eta, ...
-    max_ted_bps, ted_asymp_margin);
+    max_ted_bps, ted_asymp_margin, orth_mode, eta_fix, ...
+    w_cond, idx_scr, idx_nor, cond_diff_data_bps);
 
 %% Run fminsearch
 fprintf('Starting fminsearch from x0:\n');
-fprintf('  lambda=%.3f, iota=%.4f, eta=%.3f  (3-D search; lambda_us = lambda_eu)\n', ...
-    x0(1), x0(2), x0(3));
+if isempty(eta_fix)
+    fprintf('  lambda=%.3f, iota=%.4f, eta=%.3f  (3-D search; lambda_us = lambda_eu)\n', ...
+        x0(1), x0(2), x0(3));
+else
+    fprintf('  lambda=%.3f, iota=%.4f  (2-D search; eta fixed at %.3f)\n', ...
+        x0(1), x0(2), eta_fix);
+end
 fprintf('Weights: w_cip=%.2f w_bpus=%.2f w_bpeu=%.2f w_meanDW=%.2f w_meanFF=%.2f w_ratioDF=%.2f w_meanDWS=%.2f w_corr=%.2f (delta=%.2f)\n', ...
     w_cip, w_bpus, w_bpeu, w_meanDW, w_meanFF, w_ratioDF, w_meanDWS, w_corr, delta_DWS_estim);
 
@@ -195,6 +251,10 @@ x0_list = {
     [3.00, 0.060, 0.40],          % high lambda
     [5.00, 0.070, 0.50],          % very high lambda
 };
+if ~isempty(eta_fix)
+    % 2-D mode: drop the eta component of every starting point.
+    x0_list = cellfun(@(v) v(1:2), x0_list, 'UniformOutput', false);
+end
 
 options_screen = optimset('Display', 'off', 'MaxFunEvals', 1500, 'MaxIter', 400, ...
                           'TolX', 1e-5, 'TolFun', 1e-6);
@@ -207,19 +267,19 @@ for ii = 1:numel(x0_list)
     x0_try = x0_list{ii};
     try
         [x_try, fval_try, ef_try] = fminsearch(obj_fun, x0_try, options_screen);
-        fprintf('  %d   [%.3f, %.4f, %.3f]  ->  %.4f      %d\n', ...
-            ii, x0_try(1), x0_try(2), x0_try(3), fval_try, ef_try);
+        fprintf('  %d   [%s]  ->  %.4f      %d\n', ...
+            ii, sprintf('%.4f ', x0_try), fval_try, ef_try);
         if fval_try < best_fval
             best_fval = fval_try;
             best_x    = x_try;
         end
     catch ME
-        fprintf('  %d   [%.3f, %.4f, %.3f]  FAILED: %s\n', ...
-            ii, x0_try(1), x0_try(2), x0_try(3), ME.message);
+        fprintf('  %d   [%s]  FAILED: %s\n', ...
+            ii, sprintf('%.4f ', x0_try), ME.message);
     end
 end
-fprintf('Best screening fval = %.4f at x = [%.4f, %.5f, %.4f]\n', ...
-    best_fval, best_x(1), best_x(2), best_x(3));
+fprintf('Best screening fval = %.4f at x = [%s]\n', ...
+    best_fval, sprintf('%.5f ', best_x));
 fprintf('Polishing from best with full-precision options...\n');
 [x_opt, fval, exitflag] = fminsearch(obj_fun, best_x, options);
 
@@ -228,14 +288,18 @@ lambda_opt    = x_opt(1);
 lambda_us_opt = lambda_opt;     % common lambda (paper simplification)
 lambda_eu_opt = lambda_opt;
 iota_ss_opt   = x_opt(2);
-eta_opt       = x_opt(3);
+if isempty(eta_fix), eta_opt = x_opt(3); else, eta_opt = eta_fix; end
 varrho_opt    = 0;
 asy_opt_bps   = (1 - eta_opt) * iota_ss_opt * 1e4 / pi_us_ss;
 
 fprintf('\n====== Estimation Results ======\n');
 fprintf('  lambda    = %.6f   (lambda_us = lambda_eu)\n', lambda_opt);
 fprintf('  iota_ss   = %.6f\n', iota_ss_opt);
-fprintf('  eta       = %.6f   (estimated; init at %.3f)\n', eta_opt, eta_init);
+if isempty(eta_fix)
+    fprintf('  eta       = %.6f   (estimated; init at %.3f)\n', eta_opt, eta_init);
+else
+    fprintf('  eta       = %.6f   (FIXED)\n', eta_opt);
+end
 fprintf('  varrho    = %.6f   (removed; hardcoded to 0)\n', varrho_opt);
 fprintf('  Asymptote (1-eta)*iota*1e4 = %.2f bps  (vs max TED %.2f bps)\n', ...
     asy_opt_bps, max_ted_bps);
@@ -261,6 +325,12 @@ fit_bpeu  = sqrt(mean(((bpeu_m_dm - bpeu_d_demeaned) * abs_sc).^2));
 % Volume moment fits (log scale)
 logmean_DW_m = log(mean(DW_us_opt(idx_dw)));
 logmean_FF_m = log(mean(FF_us_opt(idx_ff)));
+
+if w_cond > 0
+    diff_model_opt = (mean(CIP_opt(idx_scr)) - mean(CIP_opt(idx_nor))) * abs_sc;
+    fprintf('\nConditional CIP diff (scr - nor): model = %.1f bps, data = %.1f bps\n', ...
+        diff_model_opt, cond_diff_data_bps);
+end
 
 fprintf('\n--- Price fit (RMSE, model vs data) ---\n');
 fprintf('  CIP        : %8.2f bps    (data std = %8.2f bps)\n', fit_cip,  sqrt(v_cip));
@@ -342,17 +412,31 @@ fprintf('sigma_us: range [%.4f, %.4f]  mean=%.4f  std=%.4f\n', ...
 fprintf('sigma_eu: range [%.4f, %.4f]  mean=%.4f  std=%.4f\n', ...
     min(sigma_eu_opt), max(sigma_eu_opt), mean(sigma_eu_opt), std(sigma_eu_opt));
 
-% Orthogonality diagnostic at the optimum
+% Identification-penalty diagnostics at the optimum (all three measures,
+% regardless of which one was penalized, for cross-mode comparison)
 valid_corr = isfinite(sigma_us_opt) & sigma_us_opt > 0 & isfinite(mu_us);
 if sum(valid_corr) > 10
-    corr_lvl = corr(log(sigma_us_opt(valid_corr)), mu_us(valid_corr));
-    dlsig    = diff(log(sigma_us_opt(valid_corr)));
+    lsig_opt = log(sigma_us_opt(valid_corr));
+    lsig_opt = lsig_opt(:);
+    corr_lvl = corr(lsig_opt, mu_us(valid_corr));
+    dlsig    = diff(lsig_opt);
     dmu      = diff(mu_us(valid_corr));
-    corr_dff = corr(dlsig, dmu);
+    corr_dff = corr(dlsig, dmu(:));
+    tvec_opt  = (1:numel(lsig_opt))';
+    corr_trnd = corr(lsig_opt, tvec_opt);
+    kpss_opt  = kpss_stat_lrv(lsig_opt);
     fprintf('Orthogonality:  corr(log σ, μ) levels = %+.4f   diffs = %+.4f\n', ...
         corr_lvl, corr_dff);
-    fprintf('                corr^2 contribution to objective = %.3f (w_corr=%.1f)\n', ...
-        w_corr * corr_lvl^2, w_corr);
+    fprintf('Trend:          corr(log σ, t)        = %+.4f   (R^2 = %.4f)\n', ...
+        corr_trnd, corr_trnd^2);
+    fprintf('Stationarity:   KPSS-type statistic   = %.4f\n', kpss_opt);
+    switch orth_mode
+        case 'corr',  pen_opt = corr_lvl^2;
+        case 'trend', pen_opt = corr_trnd^2;
+        case 'kpss',  pen_opt = kpss_opt;
+    end
+    fprintf('                penalty (%s) contribution to objective = %.3f (w=%.1f)\n', ...
+        orth_mode, w_corr * pen_opt, w_corr);
 end
 
 % m_eff diagnostics (negative-reserve regimes)
@@ -406,11 +490,30 @@ lambda_us_override_val = lambda_us_opt;
 lambda_eu_override_val = lambda_eu_opt;
 eta_override_val       = eta_opt;
 iota_ss_override_val   = iota_ss_opt;
-save('_calibration_override.mat', ...
+% Non-default penalty modes save to a suffixed file so the committed baseline
+% calibration (_calibration_override.mat, orth_mode='corr') is never clobbered.
+% Fixed-eta runs always get their own suffix.
+if ~isempty(eta_fix) && w_cond > 0
+    override_file = sprintf('_calibration_override_eta%02.0f_cond%g.mat', 100 * eta_fix, w_cond);
+elseif ~isempty(eta_fix)
+    override_file = sprintf('_calibration_override_eta%02.0f.mat', 100 * eta_fix);
+elseif strcmp(orth_mode, 'corr')
+    override_file = '_calibration_override.mat';
+else
+    override_file = sprintf('_calibration_override_%s.mat', orth_mode);
+end
+% A driver may set override_suffix (e.g. '_lcr' for the mu-minus-LCR variant)
+% so suffixed runs never clobber the unsuffixed files (incl. the committed
+% baseline: corr + suffix -> _calibration_override_lcr.mat).
+if ~exist('override_suffix', 'var'), override_suffix = ''; end
+if ~isempty(override_suffix)
+    override_file = strrep(override_file, '.mat', [override_suffix '.mat']);
+end
+save(override_file, ...
     'lambda_us_override_val', 'lambda_eu_override_val', ...
     'eta_override_val', 'iota_ss_override_val', ...
-    'fval', 'fit_cip', 'fit_bpus', 'fit_bpeu');
-fprintf('\n[snapshot] Saved calibration to _calibration_override.mat\n');
+    'fval', 'fit_cip', 'fit_bpus', 'fit_bpeu', 'orth_mode');
+fprintf('\n[snapshot] Saved calibration to %s\n', override_file);
 
 %% ===== Local functions =====
 
@@ -424,13 +527,18 @@ function obj = estimate_obj_2d(x, ...
         w_cip, w_bpus, w_bpeu, w_meanDW, w_meanFF, w_ratioDF, w_meanDWS, w_corr, ...
         delta_DWS_estim, abs_sc, ...
         b_lambda, b_iota, b_eta, ...
-        max_ted_bps, ted_asymp_margin)
+        max_ted_bps, ted_asymp_margin, orth_mode, eta_fix, ...
+        w_cond, idx_scr, idx_nor, cond_diff_data_bps)
 
     lam    = x(1);          % common lambda (paper simplification)
     lam_us = lam;
     lam_eu = lam;
     iot    = x(2);
-    et     = x(3);          % eta is now estimated
+    if isempty(eta_fix)
+        et = x(3);          % eta estimated (3-D mode)
+    else
+        et = eta_fix;       % eta pinned (2-D mode)
+    end
     vrh    = 0;             % varrho removed; hardcoded to 0
 
     % Box-bound penalty (continuous, scaled by distance outside the box)
@@ -508,19 +616,45 @@ function obj = estimate_obj_2d(x, ...
     end
     m_DWS = log(mean(DWS_us_t(idx_dw))) - logmean_DW_d;   % data DW_n is the stock
 
-    % --- Orthogonality penalty: corr(log sigma_us_t, mu_us)^2 ---
-    % Computed over periods with finite, positive sigma_us. This is the
-    % geometric coupling we want to break: at the η=0.5 baseline,
-    % |corr|≈0.90 in levels (i.e. σ tracks reserves rather than stress).
+    % --- Identification penalty (mode-dependent, unit-free) ---
+    %   'corr'  : corr(log sigma, mu_us)^2  -- original orthogonality condition
+    %   'trend' : corr(log sigma, t)^2      -- no secular trend in filtered stress
+    %   'kpss'  : partial-sum stationarity statistic on demeaned log sigma
     valid_sm = isfinite(sigma_us_t) & sigma_us_t > 0 & isfinite(mu_us);
     if sum(valid_sm) > 10
         lsig = log(sigma_us_t(valid_sm));
-        mvec = mu_us(valid_sm);
-        c = corr(lsig(:), mvec(:));
-        if ~isfinite(c), c = 1; end   % penalize hard if undefined
-        corr_pen = c^2;
+        lsig = lsig(:);
+        switch orth_mode
+            case 'corr'
+                mvec = mu_us(valid_sm);
+                c = corr(lsig, mvec(:));
+                if ~isfinite(c), c = 1; end   % penalize hard if undefined
+                corr_pen = c^2;
+            case 'trend'
+                tvec = (1:numel(lsig))';
+                c = corr(lsig, tvec);
+                if ~isfinite(c), c = 1; end
+                corr_pen = c^2;
+            case 'kpss'
+                % KPSS level-stationarity statistic with Bartlett long-run
+                % variance (bandwidth l12). The LRV normalization is essential:
+                % sigma is persistent by construction (stress regimes), and a
+                % plain-variance denominator would punish persistence itself
+                % rather than nonstationary drift.
+                corr_pen = kpss_stat_lrv(lsig);
+                if ~isfinite(corr_pen), corr_pen = 1; end
+            otherwise
+                error('Unknown orth_mode: %s', orth_mode);
+        end
     else
         corr_pen = 1;   % too few valid periods -> hard penalty
+    end
+
+    % --- Conditional-amplification target (0 when w_cond = 0) ---
+    cond_term = 0;
+    if w_cond > 0
+        diff_model_bps = (mean(CIP_t(idx_scr)) - mean(CIP_t(idx_nor))) * abs_sc;
+        cond_term = ((diff_model_bps - cond_diff_data_bps) / cond_diff_data_bps)^2;
     end
 
     obj = w_cip    * mean(r_cip.^2)  / v_cip  ...
@@ -530,7 +664,31 @@ function obj = estimate_obj_2d(x, ...
         + w_meanFF  * m_FF^2 ...
         + w_ratioDF * m_ratioDF^2 ...
         + w_meanDWS * m_DWS^2 ...
-        + w_corr    * corr_pen;
+        + w_corr    * corr_pen ...
+        + w_cond    * cond_term;
+end
+
+
+function stat = kpss_stat_lrv(y)
+    % KPSS level-stationarity statistic: sum(S_t^2) / (T^2 * s2_LRV), where
+    % S_t are partial sums of the demeaned series and s2_LRV is the Bartlett
+    % (Newey-West) long-run variance with the standard l12 bandwidth,
+    % l = floor(12*(T/100)^(1/4)).  Unit-free; 5%% critical value = 0.463.
+    y  = y(:);
+    e  = y - mean(y);
+    T  = numel(e);
+    S  = cumsum(e);
+    l  = floor(12 * (T / 100)^(1/4));
+    s2 = (e' * e) / T;
+    for j = 1:l
+        w  = 1 - j / (l + 1);
+        s2 = s2 + 2 * w * (e(1:T-j)' * e(1+j:T)) / T;
+    end
+    if s2 <= 0 || ~isfinite(s2)
+        stat = 1;
+    else
+        stat = sum(S.^2) / (T^2 * s2);
+    end
 end
 
 

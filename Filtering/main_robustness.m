@@ -22,11 +22,11 @@ addpath('data');
 addpath('plotting');
 
 % --- Flags ---
-do_estimate_iota   = 0;
-do_estimate_ploss  = 0;
+do_estimate_iota   = 1;
+do_estimate_ploss  = 1;
 do_plot_iota       = 1;
 do_plot_ploss      = 1;
-run_julia          = 0;    % set 0 to skip per-pair Markov estimation
+run_julia          = 1;    % set 0 to skip per-pair Markov estimation
 
 % --- Setup workspace (matches estimate_params.m prelude) ---
 matching_type = 1;          % 1 = Cobb-Douglas, 0 = Leontief
@@ -36,6 +36,13 @@ pi_us_ss = 1;
 load('data/LFX_data.mat');
 load('data/calibration.mat');
 run('functions/params.m');
+
+% mu-minus-LCR: match the live pipeline (main_filter.m, mu_minus_lcr = 1).
+% The baseline calibration is estimated on EXCESS liquidity above the LCR
+% requirement, so the robustness criterion must consume the same mu.
+mu_us = mu_minus_lcr_level(mu_us, LCR_us);
+fprintf('Robustness setup: mu-minus-LCR ON, exp(mu_us) range=[%.3f, %.3f]\n', ...
+    min(exp(mu_us)), max(exp(mu_us)));
 
 % Baseline values (frozen before any robustness loop overwrites them)
 lambda_baseline = lambda_us;
@@ -52,7 +59,7 @@ datesperiod = 1:T;
 dates = datenum(2001, 1:T, 1);
 
 % Baseline correction (matches main_filter.m)
-use_mu_baseline = 0.1;       % keep parity with main_filter.m default
+use_mu_baseline = 0;         % keep parity with main_filter.m (annual mubar off)
 if use_mu_baseline == 1
     [mubar_us_t, mubar_eu_t] = liquidity_baseline(dates);
 else

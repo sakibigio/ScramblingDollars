@@ -16,8 +16,9 @@ fprintf('Free param: lambda  |  eta=%.4f, iota_ss=%.4f fixed\n', ...
 fprintf('========================================\n');
 
 %% Grid
-% 10 uniform points spanning the empirically plausible range.
-ploss_grid = linspace(0.30, 0.70, 10);
+% 11 uniform points spanning the empirically plausible range, so the grid
+% contains the baseline ploss = 0.50 exactly.
+ploss_grid = linspace(0.30, 0.70, 11);
 N_grid     = numel(ploss_grid);
 
 %% Sample selection for moment objective
@@ -29,6 +30,23 @@ idx_DW   = find(valid_DW);
 logmean_FF_d = log(mean(FF_n(idx_FF)));
 logmean_DW_d = log(mean(DW_n(idx_DW)));
 logmax_DW_d  = log(max(DW_n(idx_DW)));
+
+%% Baseline-criterion targets (mirror estimate_params_4d.m; w_cip = 0 there)
+NaN_bpus = (Rb_Rm == 0)    | isnan(Rb_Rm);
+NaN_bpeu = (Rb_Rm_eu == 0) | isnan(Rb_Rm_eu);
+tg = struct();
+tg.idx_bpus  = find(~NaN_bpus);
+tg.idx_bpeu  = find(~NaN_bpeu);
+tg.bpus_d_dm = Rb_Rm(tg.idx_bpus)    - mean(Rb_Rm(tg.idx_bpus));
+tg.bpeu_d_dm = Rb_Rm_eu(tg.idx_bpeu) - mean(Rb_Rm_eu(tg.idx_bpeu));
+tg.v_bpus    = max(var(tg.bpus_d_dm * abs_scale), 1e-12);
+tg.v_bpeu    = max(var(tg.bpeu_d_dm * abs_scale), 1e-12);
+tg.idx_ff    = idx_FF;
+tg.idx_dw    = idx_DW;
+tg.logmean_FF_d = logmean_FF_d;
+tg.logmean_DW_d = logmean_DW_d;   % data DW_n is a stock; compared to model DWS
+tg.w_bpus = 1.0; tg.w_bpeu = 1.0; tg.w_meanFF = 1.0; tg.w_meanDWS = 1.0;
+tg.w_corr = 0.0;   % baseline criterion is penalty-free (nopen_lcr spec, 2026-07-31)
 
 %% Inputs struct
 in = struct();
@@ -69,10 +87,21 @@ for ii = 1:N_grid
     p_g = ploss_grid(ii);
     fprintf('\n--- (%d/%d) ploss = %.3f ---\n', ii, N_grid, p_g);
 
-    obj = @(lam) obj_lambda(lam, eta_baseline, iota_baseline, p_g, in, ...
-        idx_FF, idx_DW, logmean_FF_d, logmean_DW_d, logmax_DW_d);
-    x0 = lambda_baseline;
-    [lam_opt, fval, ef] = fminsearch(obj, x0, options);
+    % Same criterion as the baseline estimation (estimate_params_4d.m),
+    % restricted to lambda.  Multi-start: baseline lambda and, past the
+    % first grid point, the previous grid point's optimum.
+    obj = @(lam) obj_lambda_baseline(lam, eta_baseline, iota_baseline, p_g, in, tg);
+    x0_list = lambda_baseline;
+    if ii > 1 && isfinite(rob_ploss(ii-1).lambda)
+        x0_list = [lambda_baseline, rob_ploss(ii-1).lambda];
+    end
+    fval = Inf; lam_opt = NaN; ef = NaN;
+    for jj = 1:numel(x0_list)
+        [lam_try, fval_try, ef_try] = fminsearch(obj, x0_list(jj), options);
+        if fval_try < fval
+            fval = fval_try; lam_opt = lam_try; ef = ef_try;
+        end
+    end
 
     fprintf('  lambda* = %.6f   obj = %.4e   ef = %d\n', lam_opt, fval, ef);
 
@@ -148,28 +177,4 @@ for ii = 1:N_grid
         rob_ploss(ii).logmax_DW_m  - logmax_DW_d);
 end
 
-%% ===== Local objective =====
-function obj = obj_lambda(lam, eta_fix, iot_fix, ploss_g, in, ...
-        idx_FF, idx_DW, logmean_FF_d, logmean_DW_d, logmax_DW_d)
-    pen = 0;
-    if lam <= 0.05, pen = pen + 1e6 * (1 + abs(0.05-lam)); end
-    if lam >= 10,   pen = pen + 1e6 * (1 + abs(lam-10));   end
-    if pen > 0, obj = pen; return; end
-
-    try
-        out = run_filter_series(lam, eta_fix, iot_fix, ploss_g, in);
-    catch
-        obj = 1e9; return;
-    end
-
-    FF = out.FF_us_t; DW = out.DW_us_t;
-    if any(FF(idx_FF) <= 0) || any(DW(idx_DW) <= 0) || ...
-       any(~isfinite(FF(idx_FF))) || any(~isfinite(DW(idx_DW)))
-        obj = 1e8; return;
-    end
-
-    m1 = log(mean(FF(idx_FF))) - logmean_FF_d;
-    m2 = log(mean(DW(idx_DW))) - logmean_DW_d;
-    m3 = log(max (DW(idx_DW))) - logmax_DW_d;
-    obj = m1^2 + m2^2 + m3^2;
-end
+% Objective: functions/obj_lambda_baseline.m (baseline criterion, lambda only).

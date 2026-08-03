@@ -228,7 +228,7 @@ model_moments = {...
     %'FX', 1, rho_e_sim, std_e/E_e, (E_e_r2./E_e_r1-1)*10000, rho_e_sim_r2, rho_e_sim_r1, (std_e_r2./std_e_r1); 
     %             '$\Delta$ FX', E_pi_ret_us, rho_pi_us_sim, std_pi_ret_us, E_pi_ret_us_r2-E_pi_ret_us_r1, rho_e_sim_r2, rho_e_sim_r1, (std_pi_ret_us_r2./std_pi_ret_us_r1);
     %             'BP', E_bp, rho_bp_sim, std_bp, E_bp_r2-E_bp_r1, rho_bp_sim_r2, rho_bp_sim_r1, (std_bp_r2./std_bp_r1);                 
-                 '$\mathcal{DLP}$ (model)', E_cip, rho_cip_sim, std_cip, E_cip_r2-E_cip_r1, rho_cip_sim_r2, rho_cip_sim_r1, (std_cip_r2./std_cip_r1)};  % label fixed: model object is the DLP (Appendix C maps it to observed CIP)
+                 '$\mathcal{CIP}$ (model, out-of-sample)', E_cip, rho_cip_sim, std_cip, E_cip_r2-E_cip_r1, rho_cip_sim_r2, rho_cip_sim_r1, (std_cip_r2./std_cip_r1)};  % label fixed: model object is the DLP (Appendix C maps it to observed CIP)
 
 % fprintf(fid, '\\bottomrule\n');
 for ii = 1:size(model_moments, 1)

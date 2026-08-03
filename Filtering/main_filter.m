@@ -62,7 +62,7 @@ if ~exist('run_julia','var'), run_julia = 1; end  % Set to 1 to run Julia automa
 %   functions/liquidity_baseline.m. m_eff is then "excess reserves above
 %   the regulatory baseline" and can be positive or negative -- the chi
 %   helpers handle both signs via the piecewise closed form.
-use_mu_baseline = 0.1;     % 0 = raw exp(mu); 1 = subtract annual baseline
+use_mu_baseline = 0;       % 0 = raw exp(mu); 1 = subtract annual baseline
                           % (must be 1 to match estimate_params_4d.m)
 
 % Stationary-mu variant: HP-detrend the liquidity ratio BEFORE filtering.

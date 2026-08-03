@@ -43,7 +43,21 @@ using LinearAlgebra   # eigen() for Hamilton-filter stationary init
 ##     forward filter with the frozen pre-2020 parameters.
 ##
 ## Set EST_END_IDX = nrow(df) to revert to full-sample estimation.
-const EST_END_IDX = 227   # df-row of last estimation observation (Dec 2019)
+## Env override: MS_EST_END=<row>  (MS_EST_END=0 -> full sample). Default 227
+## keeps the committed pre-2020 truncation.
+const EST_END_IDX = let v = get(ENV, "MS_EST_END", "")
+    isempty(v) ? 227 : parse(Int, v)   # df-row of last estimation observation (227 = Dec 2019)
+end
+
+## Stationarity screen for the multistart (env MS_RHO_MAX, default Inf = off).
+## When set (e.g. 0.99), seeds whose fitted regime AR coefficients include
+## max_k rho_k >= MS_RHO_MAX are rejected as degenerate, so the 21-seed search
+## returns the best STATIONARY local optimum instead of the explosive global
+## one. Rationale: regime long-run means (intercept/(1-rho)) are undefined for
+## nonstationary regimes, so such fits are uninterpretable, not just inferior.
+const RHO_MAX = let v = get(ENV, "MS_RHO_MAX", "")
+    isempty(v) ? Inf : parse(Float64, v)
+end
 
 ## μ as additional switching regressor (orthogonalization)
 ## When true, the AR(1) becomes:
@@ -126,6 +140,14 @@ savefig(p1, "data/sigma_raw.png")
 function is_degenerate(model; min_sigma=0.01, min_prob_balance=0.02)
     if minimum(model.σ) < min_sigma
         return true, "min σ = $(minimum(model.σ)) < $min_sigma"
+    end
+    # Stationarity screen (off unless MS_RHO_MAX is set). The AR(1) coefficient
+    # is the first switching regressor after the intercept: model.β[k][2].
+    if isfinite(RHO_MAX) && all(length(b) >= 2 for b in model.β)
+        rho_k = [model.β[k][2] for k in eachindex(model.β)]
+        if maximum(rho_k) >= RHO_MAX
+            return true, "max ρ = $(round(maximum(rho_k), digits=4)) ≥ $RHO_MAX (nonstationary regime)"
+        end
     end
     try
         fp = filtered_probs(model)
@@ -288,9 +310,11 @@ end
 ## =========================================================================
 println("\n=== US Markov Switching Model ===")
 
-# Estimation subsample (pre-2020). Probabilities are reported over the full sample below.
-df_est = df[1:EST_END_IDX, :]
-println("Estimation sample: rows 1..$(EST_END_IDX) of $(nrow(df))  (pre-2020 only)")
+# Estimation subsample (pre-2020 by default; MS_EST_END=0 -> full sample).
+EST_END = (EST_END_IDX <= 0 || EST_END_IDX > nrow(df)) ? nrow(df) : EST_END_IDX
+df_est = df[1:EST_END, :]
+println("Estimation sample: rows 1..$(EST_END) of $(nrow(df))" *
+        (EST_END < nrow(df) ? "  (truncated)" : "  (FULL SAMPLE)"))
 println("Probability inference (Hamilton filter): full sample, rows 1..$(nrow(df))")
 # US regressor source: μ (USE_MU_REGRESSOR) or LCR (USE_LCR_REGRESSOR). LCR wins.
 us_reg_on  = USE_MU_REGRESSOR || USE_LCR_REGRESSOR
@@ -301,7 +325,7 @@ println("USE_MU_REGRESSOR = $(USE_MU_REGRESSOR) | USE_LCR_REGRESSOR = $(USE_LCR_
 if us_reg_on && hasproperty(df, us_reg_col)
     if USE_MU_TREND && !USE_LCR_REGRESSOR
         mu_us_full  = hp_trend(df[!, us_reg_col], HP_LAMBDA_MO)
-        mu_us_est   = mu_us_full[1:EST_END_IDX]
+        mu_us_est   = mu_us_full[1:EST_END]
         raw_lo, raw_hi = extrema(df[!, us_reg_col]);  trd_lo, trd_hi = extrema(mu_us_full)
         println("US: HP-trend of μ used (λ=$(HP_LAMBDA_MO)). " *
                 "Raw μ range=[$(round(raw_lo,digits=3)), $(round(raw_hi,digits=3))], " *
@@ -515,7 +539,7 @@ println("\n=== EU Markov Switching Model ===")
 if USE_MU_REGRESSOR && hasproperty(df, :mu_eu)
     if USE_MU_TREND
         mu_eu_full  = hp_trend(df.mu_eu, HP_LAMBDA_MO)
-        mu_eu_est   = mu_eu_full[1:EST_END_IDX]
+        mu_eu_est   = mu_eu_full[1:EST_END]
     else
         mu_eu_full  = df.mu_eu
         mu_eu_est   = df_est.mu_eu
