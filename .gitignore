@@ -100,3 +100,10 @@ Filtering/data/LFX_datainputs_pre1M_*.xlsx
 # its driver scripts live in Filtering/run_*iota_tv*.m)
 Filtering_iota_tv/
 Nonlinear Model/*conflicted copy*.mat
+
+# Session scratch from estimation/sweep runs (2026-07-31)
+Filtering/*_log.txt
+Filtering/_*_baseline/
+Filtering/_*_mk/
+Filtering/*.png
+*.bak_*
