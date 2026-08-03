@@ -19,13 +19,23 @@ Set `printit_all = 0` inside the driver for a dry run: with `printit_all = 1` th
 Filtering/                        The live pipeline (MATLAB + Julia), Cobb-Douglas end-to-end
   run_full_pipeline.m             One-shot driver: load_data → main_filter → main_LFX → compute_data_moments
   load_data.m                     Reads data/LFX_datainputs.xlsx → data/LFX_data.mat (ALWAYS run before the filter)
-  main_filter.m                   TED-inversion filter for σ shocks → RW_shock.csv; auto-runs markov_estimation.jl
-  markov_estimation.jl            Julia regime-switching MLE (RW_shock.csv → data/MS_sigma_us_prob.csv, MS_sigma_us_params.csv)
+  main_filter.m                   TED-inversion filter for σ shocks → RW_shock.csv; auto-runs markov_estimation.jl.
+                                  The US liquidity ratio enters NET of the LCR requirement (mu_minus_lcr = 1)
+  markov_estimation.jl            Julia regime-switching MLE (RW_shock.csv → data/MS_sigma_us_prob.csv, MS_sigma_us_params.csv).
+                                  Estimated on the pre-2020 window (MS_EST_END env, default 227 = Dec-2019; full-sample
+                                  MLE has no stationary optimum). MS_RHO_MAX env adds a stationarity screen
   main_LFX.m                      Model stage: steady state, Markov setup, global solution, simulation, figures, moment tables
   compute_data_moments.m          Data-side conditional-moment tables (Data_*.tex) — not run by any other stage
-  estimate_params_4d.m            (λ, ι, η) estimation, incl. σ–μ orthogonality penalty and the
-                                  TED-asymptote constraint (1−η)·ι > 1.05 × max TED; writes _calibration_override.mat
-  run_estimate_5d.m               Driver that sets up the workspace for estimate_params_4d.m
+  estimate_params_4d.m            (λ, ι, η) estimation by pure moment-matching (bond premia + FF volume + DW stock),
+                                  on the LCR-excess liquidity ratio, subject to the TED-asymptote (feasibility)
+                                  constraint (1−η)·ι ≥ 1.05 × max TED, which binds at the estimate. No auxiliary
+                                  identification penalties in the baseline (legacy corr/trend/kpss modes retained
+                                  behind orth_mode / ORTH_W; η can be pinned via eta_fix). Writes _calibration_override.mat
+  run_estimate_5d.m               Driver that sets up the workspace (incl. the LCR-excess μ and zero penalty weight)
+                                  and reproduces the baseline: λ = 1.392, i^w−i^m = 9.51%, η = 0.632
+  run_estimate_orth.m             Env-configurable estimation driver (ORTH_MODE / ORTH_W / ETA_FIX / MU_LCR) used for
+                                  the identification experiments; run_orth_*.sh, run_dual_lfx.sh, run_promote_nopen.sh
+                                  are the corresponding sweep/promotion drivers (2026-07 identification arc)
   estimate_params_iota_regime.m   Per-regime ι variant (Appendix)
   main_robustness.m               Robustness sweeps (η, ι, ploss)
   functions/                      Model primitives (params, moments, steady state, χ operators; setup_markov, solve_global, ...)
@@ -52,6 +62,8 @@ Nonlinear Model/                  LEGACY (Leontief-era) copy of the model stage.
 | 4 | `compute_data_moments.m` | `data/LFX_data.mat`, `data/MS_sigma_us_prob.csv` | `Data_Moments.tex`, `Data_CIP_Moments.tex`, `Data_SwitchDev_Moments.tex` |
 
 Stage 0 is only needed when the underlying data basis changes (it adapts the asymptote constraint to the observed TED peak). Stages 1–4 are what `run_full_pipeline.m` runs.
+
+**Current baseline calibration** (in `_calibration_override.mat`, estimated 2026-07-31): λ = 1.392, i^w−i^m = 9.51% annualized, η = 0.632 — pure moment-matching on the LCR-excess liquidity ratio with no identification penalties; the feasibility bound (1−η)(i^w−i^m) ≥ 1.05 × max TED binds at the estimate. The previous baseline (σ–μ orthogonality penalty on the raw liquidity ratio; λ = 1.84, η = 0.61) is preserved at git tag `old-baseline-corr-eta061`.
 
 **Pitfall:** `main_filter.m` reads `data/LFX_data.mat`, *not* the workbook. Any edit to `LFX_datainputs.xlsx` is invisible until `load_data.m` is re-run — always go through `run_full_pipeline.m` or run `load_data` first.
 
@@ -80,7 +92,9 @@ The master workbook is `Filtering/data/LFX_datainputs.xlsx` (tab `DataCounterpar
 - **Bond premium** (col G, US) = 30-day AA financial commercial paper (FRED `RIFSPPFAAD30NB`, spread stored in col EP) − 1M Treasury, from Jul-2001; earlier months keep the legacy 3M CP spread (`ExcessBondPremium` tab).
 - The pre-change workbook is preserved as `data/LFX_datainputs_pre1M_20260727.xlsx`; pre-change pipeline state in `Filtering/backup_pre1M_20260727/`.
 
-Other sources: exchange/forward/policy rates (Federal Reserve H.10, Bloomberg, BIS); CIP deviations (Du–Schreger–Verdelhan); deposits and funding volumes (FRED); bank liquidity ratios (FEDS Notes, monthly-interpolated). Series-level notes are in the workbook itself.
+- **Liquidity ratio (US)**: the pipeline consumes the ratio **net of the LCR requirement**, μ = log(exp(μ̂) − LCR/100), where the requirement path (workbook col EM, `LiquidityCoverageRatios` tab) is digitized from the Feb-2020 FRB FEDS Note "The Liquidity Coverage Ratio and Corporate Liquidity Management" (quarterly 2003Q1–2018Q3, monthly-interpolated, endpoints held flat). Applied identically in `main_filter.m` (`mu_minus_lcr = 1`) and in the estimation drivers. The euro ratio enters unadjusted (no requirement series).
+
+Other sources: exchange/forward/policy rates (Federal Reserve H.10, Bloomberg, BIS); CIP deviations (Du–Schreger–Verdelhan); deposits and funding volumes (FRED). Series-level notes are in the workbook itself.
 
 ## Citation
 
