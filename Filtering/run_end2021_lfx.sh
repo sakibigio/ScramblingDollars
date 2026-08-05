@@ -2,8 +2,8 @@
 # Ex-post moments for: committed calibration + Dec-2021 Markov window.
 set -e
 cd "$(dirname "$0")"
-MATLAB="/Applications/MATLAB_R2025b.app/bin/matlab"
-OVERLEAF="/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs"
+MATLAB="${MATLAB_BIN:-/Applications/MATLAB_R2025b.app/bin/matlab}"
+OVERLEAF="${SCRAMBLING_QUANTFIGS:-/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs}"
 BK="_end2021_baseline"; mkdir -p "$BK/data" "$BK/overleaf"
 FILES=(_calibration_override.mat RW_shock.csv data/MS_params.csv data/MS_sigma_us_prob.csv data/initguess.mat)
 TEX=(Mod_Moments_cd.tex Mod_CIP_Moments_cd.tex Mod_SwitchDev_Moments_cd.tex)

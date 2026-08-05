@@ -25,14 +25,14 @@ cd "$(dirname "$0")"
 
 # ---- Configuration ---------------------------------------------------------
 ETA_VALUES=(0.50 0.35 0.25)
-MATLAB="/Applications/MATLAB_R2025b.app/bin/matlab"
+MATLAB="${MATLAB_BIN:-/Applications/MATLAB_R2025b.app/bin/matlab}"
 JULIA="$(which julia)"
-OVERLEAF="/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs"
+OVERLEAF="${SCRAMBLING_QUANTFIGS:-/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs}"
 
 # Sanity checks
 if [ ! -x "$MATLAB" ]; then
     echo "ERROR: MATLAB not found at $MATLAB"
-    echo "Edit MATLAB= line above to point to your installation."
+    echo "Set MATLAB_BIN=/path/to/matlab, or edit the MATLAB= line above."
     exit 1
 fi
 if [ -z "$JULIA" ]; then

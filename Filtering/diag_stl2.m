@@ -1,5 +1,5 @@
 %% Deeper diagnostic
-cd('/Users/sakibigio/Dropbox/Scrabmling for Dollars/Code 2025 ScramblingDollars/Filtering');
+cd(fileparts(mfilename('fullpath')));   % this file's own folder
 
 fn = 'data/LFX_datainputs.xlsx';
 fprintf('Sheet names:\n');

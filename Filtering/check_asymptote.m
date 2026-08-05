@@ -1,5 +1,5 @@
 %% Diagnostic: empirically verify the TED asymptote at sigma -> infty
-cd('/Users/sakibigio/Dropbox/Scrabmling for Dollars/Code 2025 ScramblingDollars/Filtering');
+cd(fileparts(mfilename('fullpath')));   % this file's own folder
 addpath('functions');
 addpath('functions/chi');
 addpath('data');

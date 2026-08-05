@@ -1,7 +1,7 @@
 %% Verify: at the user's reported params, does the estimation routine's
 %  filter give the same DWS/FF as main_filter.m?  Same data, same setup,
 %  no optimization -- single function evaluation.
-cd('/Users/sakibigio/Dropbox/Scrabmling for Dollars/Code 2025 ScramblingDollars/Filtering');
+cd(fileparts(mfilename('fullpath')));   % this file's own folder
 addpath('functions'); addpath('functions/chi'); addpath('utils'); addpath('data');
 
 matching_type = 1;

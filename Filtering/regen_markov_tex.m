@@ -2,17 +2,10 @@
 % Stand-alone: reads the CSV and writes the Overleaf .tex file directly,
 % without re-running main_filter.m.
 
-cd('/Users/sakibigio/Dropbox/Scrabmling for Dollars/Code 2025 ScramblingDollars/Filtering');
+cd(fileparts(mfilename('fullpath')));   % this file's own folder
 
 params_file = 'data/MS_sigma_us_params.csv';
-[~, username] = system('whoami');  username = strtrim(username);
-if strcmp(username, 'sakibigio')
-    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-elseif strcmp(username, 'sakiclaudia')
-    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-else
-    foldername = './quantfigs/';
-end
+foldername = overleaf_dir();
 mt_suffix = '_cd';
 
 params_tbl = readtable(params_file);

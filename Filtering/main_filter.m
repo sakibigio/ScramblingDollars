@@ -630,8 +630,8 @@ if run_julia == 1
             julia_path = '/opt/homebrew/bin/julia';
         elseif exist('/Applications/Julia-1.10.app/Contents/Resources/julia/bin/julia', 'file')
             julia_path = '/Applications/Julia-1.10.app/Contents/Resources/julia/bin/julia';
-        elseif exist('/Users/sakibigio/.juliaup/bin/julia', 'file')
-            julia_path = '/Users/sakibigio/.juliaup/bin/julia';
+        elseif exist(fullfile(getenv('HOME'), '.juliaup/bin/julia'), 'file')
+            julia_path = fullfile(getenv('HOME'), '.juliaup/bin/julia');
         else
             warning('Julia not found. Run markov_estimation.jl manually.');
             julia_path = '';

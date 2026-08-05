@@ -62,17 +62,7 @@ end
 threshold = 0.5;    % Prob. of low-risk state below which = scrambling regime
 
 % Output folder: match convention from other plotting scripts
-[~, username] = system('whoami');
-username = strtrim(username);
-if strcmp(username, 'sakibigio')
-    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-elseif strcmp(username, 'sakiclaudia')
-    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-else
-    warning('Unknown user ''%s''. Figures will not be saved to Overleaf.', username);
-    foldername = './quantfigs/';
-    printit = 0;
-end
+foldername = overleaf_dir();
 if ~exist(foldername, 'dir'), mkdir(foldername); end
 
 % Formatting – guard allows standalone use outside main_filter.m

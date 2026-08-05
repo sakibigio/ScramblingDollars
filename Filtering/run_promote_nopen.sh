@@ -3,9 +3,9 @@
 # Live pipeline + Overleaf tables move to the new calibration; dated backups kept.
 set -e
 cd "$(dirname "$0")"
-MATLAB="/Applications/MATLAB_R2025b.app/bin/matlab"
+MATLAB="${MATLAB_BIN:-/Applications/MATLAB_R2025b.app/bin/matlab}"
 JULIA="$HOME/.juliaup/bin/julia"
-OVERLEAF="/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs"
+OVERLEAF="${SCRAMBLING_QUANTFIGS:-/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs}"
 STAMP=prepromote_20260731
 
 echo "=== [0] Backups ==="

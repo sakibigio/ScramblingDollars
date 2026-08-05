@@ -81,7 +81,7 @@ if run_julia == 1
             '/usr/local/bin/julia'
             '/opt/homebrew/bin/julia'
             '/Applications/Julia-1.10.app/Contents/Resources/julia/bin/julia'
-            '/Users/sakibigio/.juliaup/bin/julia'
+            fullfile(getenv('HOME'), '.juliaup/bin/julia')
         };
         for kk = 1:numel(candidates)
             if exist(candidates{kk}, 'file')

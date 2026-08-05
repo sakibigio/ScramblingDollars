@@ -13,19 +13,7 @@
 
 %% Settings
 % Set output folder based on machine
-[~, username] = system('whoami');
-username = strtrim(username);
-if strcmp(username, 'sakibigio')
-    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-elseif strcmp(username, 'sakiclaudia')
-    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-else
-    warning('Unknown user: %s. Figures will not be saved.', username);
-    foldername = './';
-    if ~exist('printit', 'var')
-        printit = 0;
-    end
-end
+foldername = overleaf_dir();
 
 % Define formatting if not already defined
 if ~exist('formataxis', 'var')

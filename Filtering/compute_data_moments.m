@@ -21,15 +21,7 @@
 clear; close all;
 addpath('functions');
 
-% Identify Overleaf folder (same logic as main_LFX.m)
-[~, username] = system('whoami'); username = strtrim(username);
-if strcmp(username, 'sakibigio')
-    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-elseif strcmp(username, 'sakiclaudia')
-    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-else
-    foldername = './';
-end
+foldername = overleaf_dir();
 
 load('data/LFX_data.mat');           % Rb_Rm, Rb_Rm_eu, cip, mu_us, mu_eu, DW_n, FF_n, ln_eu_us_t, etc.
 prob_tbl = readtable('data/MS_sigma_us_prob.csv');

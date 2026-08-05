@@ -17,7 +17,7 @@
 set -e
 cd "$(dirname "$0")"
 
-MATLAB="/Applications/MATLAB_R2025b.app/bin/matlab"
+MATLAB="${MATLAB_BIN:-/Applications/MATLAB_R2025b.app/bin/matlab}"
 JULIA="$HOME/.juliaup/bin/julia"
 MODES=(${ORTH_MODES:-trend kpss})   # override with e.g. ORTH_MODES=eta50
 

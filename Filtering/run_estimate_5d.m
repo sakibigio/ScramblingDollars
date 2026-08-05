@@ -1,5 +1,5 @@
 %% Driver: set up workspace and run estimate_params_4d.m
-cd('/Users/sakibigio/Dropbox/Scrabmling for Dollars/Code 2025 ScramblingDollars/Filtering');
+cd(fileparts(mfilename('fullpath')));   % this file's own folder
 addpath('functions');
 addpath('functions/chi');
 addpath('utils');

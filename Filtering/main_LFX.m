@@ -50,16 +50,7 @@ addpath('utils');
 addpath('data');
 addpath('plotting');
 
-[~, username] = system('whoami');
-username = strtrim(username);
-if strcmp(username, 'sakibigio')
-    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-elseif strcmp(username, 'sakiclaudia')
-    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-else
-    warning('Unknown user: %s. Figures will not be saved to Overleaf.', username);
-    foldername = './';
-end
+foldername = overleaf_dir();
 % Test-driver overrides: redirect ALL file output away from Overleaf.
 % (compute_moments writes .tex tables to foldername UNGUARDED by printit,
 %  so redirecting foldername is the only safe way to run tests.)

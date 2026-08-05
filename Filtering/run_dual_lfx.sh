@@ -20,9 +20,9 @@
 set -e
 cd "$(dirname "$0")"
 
-MATLAB="/Applications/MATLAB_R2025b.app/bin/matlab"
+MATLAB="${MATLAB_BIN:-/Applications/MATLAB_R2025b.app/bin/matlab}"
 JULIA="$HOME/.juliaup/bin/julia"
-OVERLEAF="/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs"
+OVERLEAF="${SCRAMBLING_QUANTFIGS:-/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs}"
 TAGS=(${LFX_TAGS:-cbase eta50})
 
 # Warm-start cache: solve_global.m loads data/initguess.mat (with a size-

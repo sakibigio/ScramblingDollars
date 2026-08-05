@@ -30,7 +30,7 @@ ac  = @(x) sum((x(1:end-1)-mean(x)).*(x(2:end)-mean(x))) / sum((x-mean(x)).^2);
 x1 = CIP_m(in_r1); x2 = CIP_m(in_scr);
 row = [mean(x_v), ac(x_v), std(x_v), mean(x2)-mean(x1), ac(x2), ac(x1), std(x2)/std(x1)];
 
-ovl = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs';
+ovl = overleaf_dir();
 fid = fopen(fullfile(ovl, 'Mod_CIP_Moments_insample.tex'), 'wt');
 fprintf(fid, '$\\mathcal{CIP}$ (model, in-sample) & %.1f & %.2f & %.1f & %.1f &  \\{ %.2f, %.2f \\} & %.1f \\\\ \n', row);
 fclose(fid);

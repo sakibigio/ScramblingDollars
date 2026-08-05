@@ -65,16 +65,9 @@ if exist(prob_file, 'file')
 end
 
 %% Output folder
-[~, username] = system('whoami');  username = strtrim(username);
-if strcmp(username, 'sakibigio')
-    foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-elseif strcmp(username, 'sakiclaudia')
-    foldername = '/Users/sakiclaudia/Library/CloudStorage/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs/';
-else
-    foldername = './quantfigs/';
-end
+foldername = overleaf_dir();
 if ~exist(foldername, 'dir'), mkdir(foldername); end
-do_print = strcmp(username, 'sakibigio') || strcmp(username, 'sakiclaudia');
+do_print = true;   % overleaf_dir() always resolves to a writable folder
 
 %% Formatting + monochromatic BLUE palette (Portfolio paper convention)
 % Convention:

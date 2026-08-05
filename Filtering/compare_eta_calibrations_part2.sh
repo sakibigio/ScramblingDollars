@@ -6,9 +6,9 @@
 cd "$(dirname "$0")"
 
 ETA_VALUES=(0.35 0.25)
-MATLAB="/Applications/MATLAB_R2025b.app/bin/matlab"
+MATLAB="${MATLAB_BIN:-/Applications/MATLAB_R2025b.app/bin/matlab}"
 JULIA="$(which julia)"
-OVERLEAF="/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs"
+OVERLEAF="${SCRAMBLING_QUANTFIGS:-/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs}"
 
 for ETA in "${ETA_VALUES[@]}"; do
     TAG="eta$(echo "$ETA" | awk '{printf "%.0f", $1*100}')"

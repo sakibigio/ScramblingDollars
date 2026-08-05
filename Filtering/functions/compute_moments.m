@@ -121,17 +121,17 @@ std_dw_sim=std(DW_us_mc)*100;
 std_ff_sim=std(FF_us_mc)*100;
 
 % autocorrelation:
-aux=autocorr(e_euus_t);
+aux=acf_local(e_euus_t);
 rho_e_sim=aux(2);
-aux=autocorr(bp_us_t);
+aux=acf_local(bp_us_t);
 rho_bp_sim=aux(2);
-aux=autocorr(uip_Rm_t);
+aux=acf_local(uip_Rm_t);
 rho_cip_sim=aux(2);
-aux=autocorr(pi_us_t);
+aux=acf_local(pi_us_t);
 rho_pi_us_sim=aux(2);
-aux=autocorr(DW_us_mc);
+aux=acf_local(DW_us_mc);
 rho_dw_sim=aux(2);
-aux=autocorr(FF_us_mc);
+aux=acf_local(FF_us_mc);
 rho_ff_sim=aux(2);
 
 % Autocorrelation by Regime
@@ -140,29 +140,29 @@ index_r2=chain>N_sigma_us/2;
 
 % e, bp, cip
 cip_t=uip_Rm_t;
-aux=autocorr(e_euus_t(index_r1));
+aux=acf_local(e_euus_t(index_r1));
 rho_e_sim_r1=aux(2);
-aux=autocorr(e_euus_t(index_r2));
+aux=acf_local(e_euus_t(index_r2));
 rho_e_sim_r2=aux(2);
-aux=autocorr(bp_us_t(index_r1));
+aux=acf_local(bp_us_t(index_r1));
 rho_bp_sim_r1=aux(2);
-aux=autocorr(bp_us_t(index_r2));
+aux=acf_local(bp_us_t(index_r2));
 rho_bp_sim_r2=aux(2);
-aux=autocorr(cip_t(index_r1));
+aux=acf_local(cip_t(index_r1));
 rho_cip_sim_r1=aux(2);
-aux=autocorr(cip_t(index_r2));
+aux=acf_local(cip_t(index_r2));
 rho_cip_sim_r2=aux(2);
-aux=autocorr(pi_us_t(index_r1));
+aux=acf_local(pi_us_t(index_r1));
 rho_pi_us_sim_r1=aux(2);
-aux=autocorr(pi_us_t(index_r2));
+aux=acf_local(pi_us_t(index_r2));
 rho_pi_us_sim_r2=aux(2);
-aux=autocorr(DW_us_mc(index_r1));
+aux=acf_local(DW_us_mc(index_r1));
 rho_dw_sim_r1=aux(2);
-aux=autocorr(DW_us_mc(index_r2));
+aux=acf_local(DW_us_mc(index_r2));
 rho_dw_sim_r2=aux(2);
-aux=autocorr(FF_us_mc(index_r1));
+aux=acf_local(FF_us_mc(index_r1));
 rho_ff_sim_r1=aux(2);
-aux=autocorr(FF_us_mc(index_r2));
+aux=acf_local(FF_us_mc(index_r2));
 rho_ff_sim_r2=aux(2);
 
 %% Print Model Moments to Table

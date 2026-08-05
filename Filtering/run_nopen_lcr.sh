@@ -2,7 +2,7 @@
 # No-penalty, free-eta, LCR-mu estimation (pure moments) + coherent Markov.
 set -e
 cd "$(dirname "$0")"
-MATLAB="/Applications/MATLAB_R2025b.app/bin/matlab"
+MATLAB="${MATLAB_BIN:-/Applications/MATLAB_R2025b.app/bin/matlab}"
 JULIA="$HOME/.juliaup/bin/julia"
 # w=0 with ORTH_MODE=corr writes _calibration_override_lcr.mat and
 # _estimation_result_corr_lcr.mat -- guard the corr_lcr files, then rename.

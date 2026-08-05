@@ -1,5 +1,5 @@
 %% Search every sheet for STLFSI / 0.3587
-cd('/Users/sakibigio/Dropbox/Scrabmling for Dollars/Code 2025 ScramblingDollars/Filtering');
+cd(fileparts(mfilename('fullpath')));   % this file's own folder
 fn = 'data/LFX_datainputs.xlsx';
 sheets = sheetnames(fn);
 target_val = 0.3587;

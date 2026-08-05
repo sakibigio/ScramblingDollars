@@ -1,5 +1,5 @@
 %% Compare current calibration vs estimated parameters
-cd('/Users/sakibigio/Dropbox/Scrabmling for Dollars/Code 2025 ScramblingDollars/Filtering');
+cd(fileparts(mfilename('fullpath')));   % this file's own folder
 addpath('functions'); addpath('functions/chi'); addpath('data');
 load('data/LFX_data.mat'); load('data/calibration.mat');
 pi_eu_ss = 1; pi_us_ss = 1; matching_type = 1;

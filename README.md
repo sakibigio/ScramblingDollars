@@ -13,7 +13,9 @@ cd('Filtering')
 run('run_full_pipeline.m')
 ```
 
-Set `printit_all = 0` inside the driver for a dry run: with `printit_all = 1` the figure and table scripts write **directly into the Overleaf `quantfigs/` folder** (paths hardcoded by username in `plotting/plot_regimes.m`, `plotting/plot_baseline.m`, and `main_LFX.m`).
+Set `printit_all = 0` inside the driver for a dry run: with `printit_all = 1` the figure and table scripts export figures and `.tex` tables.
+
+**Where output goes.** All MATLAB scripts resolve the destination through `Filtering/overleaf_dir.m`, in this order: the `SCRAMBLING_QUANTFIGS` environment variable if set; otherwise the two authors' Overleaf sync folders; otherwise `Filtering/output/`, created on demand. On any other machine you therefore get everything in `Filtering/output/` without touching anyone's Dropbox — set `SCRAMBLING_QUANTFIGS` to redirect. The `run_*.sh` drivers honour the same variable, plus `MATLAB_BIN` for the MATLAB executable.
 
 ## Repository layout
 
@@ -65,6 +67,8 @@ Nonlinear Model/                  LEGACY (Leontief-era) copy of the model stage.
 
 Stage 0 is only needed when the underlying data basis changes (it adapts the asymptote constraint to the observed TED peak). Stages 1–4 are what `run_full_pipeline.m` runs.
 
+**Reproducing the baseline estimate (Table 3).** The route is `run_nopen_lcr.sh`, then `run_promote_nopen.sh` to promote the result to `_calibration_override.mat`. `run_nopen_lcr.sh` sets `ORTH_MODE=corr ORTH_W=0 MU_LCR=1`, i.e. no identification penalty and the LCR-excess liquidity ratio. Running `estimate_params_4d.m` on its own defaults instead (`w_corr = 100`, raw μ) does **not** reproduce Table 3.
+
 **Current baseline calibration** (in `_calibration_override.mat`, estimated 2026-07-31): λ = 1.392, i^w−i^m = 9.51% annualized, η = 0.632 — pure moment-matching on the LCR-excess liquidity ratio with no identification penalties; the feasibility bound (1−η)(i^w−i^m) ≥ 1.05 × max TED binds at the estimate. The previous baseline (σ–μ orthogonality penalty on the raw liquidity ratio; λ = 1.84, η = 0.61) is preserved at git tag `old-baseline-corr-eta061`.
 
 **Pitfall:** `main_filter.m` reads `data/LFX_data.mat`, *not* the workbook. Any edit to `LFX_datainputs.xlsx` is invisible until `load_data.m` is re-run — always go through `run_full_pipeline.m` or run `load_data` first.
@@ -77,7 +81,7 @@ matching_type = 1;   % 1 = Cobb-Douglas (paper), 0 = Leontief
 
 ## Requirements
 
-- **MATLAB** R2021b+ with Optimization Toolbox (`fsolve`) and Econometrics Toolbox (`autocorr`).
+- **MATLAB** R2021b+ with Optimization Toolbox (`fsolve`). No Econometrics Toolbox needed — autocorrelations use the bundled `acf_local.m`.
 - **Julia** 1.9+ with `CSV`, `DataFrames`, `StatsBase`, `Optim`, `Distributions`, and `MarSwitching` (regime-switching MLE). Install with:
   ```julia
   using Pkg; Pkg.add(["CSV","DataFrames","StatsBase","Optim","Distributions","MarSwitching"])
