@@ -75,6 +75,10 @@ Filtering/RW_shock_muhp.csv
 !Filtering/data/filter_comparison_leontief.mat
 !Filtering/data/robustness_iota.mat
 !Filtering/data/robustness_ploss.mat
+!Filtering/data/global_solcalibration_dynare_sigma_us.mat
+!Filtering/data/iota_corridor_monthly.mat
+!Filtering/data/liq_ratio_monthly.mat
+!Filtering/data/expected_inflation_cd.mat
 !Filtering/exchange_rate_data.mat
 !Filtering/dynare_calibration_param.mat
 !Filtering/functions/LFX_datamoments.mat
