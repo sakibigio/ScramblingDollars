@@ -2,6 +2,8 @@
 
 Replication code for **"Scrambling for Dollars: International Liquidity, Banks and Exchange Rates"** by Javier Bianchi, Saki Bigio, and Charles Engel.
 
+All code in this repository was written by Saki Bigio.
+
 ## Quick start
 
 The paper's quantitative results are produced end-to-end by one driver:
@@ -111,3 +113,5 @@ Other sources: exchange/forward/policy rates (Federal Reserve H.10, Bloomberg, B
 - Javier Bianchi (Minneapolis Fed)
 - Saki Bigio (UCLA)
 - Charles Engel (UW-Madison)
+
+All code in this repository was written by Saki Bigio.
