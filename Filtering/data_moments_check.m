@@ -4,7 +4,7 @@ S = load('data/LFX_data.mat');
 bps = 12e4;
 
 ok = @(x) x(isfinite(x) & x~=0);
-ac = @(x) corr(x(1:end-1), x(2:end), 'rows','complete');
+ac = @(x) corr_complete(x(1:end-1), x(2:end));
 
 bp  = S.Rb_Rm;  bpv = ok(bp);
 cip = S.cip;    cipv = ok(cip);

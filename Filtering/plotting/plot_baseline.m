@@ -125,8 +125,8 @@ ls_us = log(sigma_us_t(datesperiod));
 mu_us_d = mu_us(datesperiod);
 dls_us = diff(ls_us);
 dmu_us = diff(mu_us_d);
-rho_lvl_us  = corr(ls_us, mu_us_d, 'rows', 'complete');
-rho_diff_us = corr(dls_us, dmu_us, 'rows', 'complete');
+rho_lvl_us  = corr_complete(ls_us, mu_us_d);
+rho_diff_us = corr_complete(dls_us, dmu_us);
 
 figure('Name', 'Sigma vs Mu (US)', 'NumberTitle', 'off')
 subplot(1,3,1)
@@ -163,8 +163,8 @@ ls_eu = log(sigma_eu_t(datesperiod));
 mu_eu_d = mu_eu(datesperiod);
 dls_eu = diff(ls_eu);
 dmu_eu = diff(mu_eu_d);
-rho_lvl_eu  = corr(ls_eu, mu_eu_d, 'rows', 'complete');
-rho_diff_eu = corr(dls_eu, dmu_eu, 'rows', 'complete');
+rho_lvl_eu  = corr_complete(ls_eu, mu_eu_d);
+rho_diff_eu = corr_complete(dls_eu, dmu_eu);
 
 figure('Name', 'Sigma vs Mu (EU)', 'NumberTitle', 'off')
 subplot(1,3,1)

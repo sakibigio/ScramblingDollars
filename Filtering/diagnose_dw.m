@@ -53,13 +53,13 @@ end
 
 %% Correlations
 fprintf('\n--- Correlations within crisis window ---\n');
-fprintf('corr(DW_n, DW_t)      = %.3f\n', corr(DW_n(win), DW_t(win), 'rows','complete'));
-fprintf('corr(DW_n, mu_us)     = %.3f\n', corr(DW_n(win), mu_us(win), 'rows','complete'));
-fprintf('corr(DW_n, sigma_t)   = %.3f\n', corr(DW_n(win), sigma_t(win), 'rows','complete'));
-fprintf('corr(DW_n, TED)       = %.3f\n', corr(DW_n(win), TED_s_us_t(win), 'rows','complete'));
-fprintf('corr(DW_t, mu_us)     = %.3f\n', corr(DW_t(win), mu_us(win), 'rows','complete'));
-fprintf('corr(DW_t, sigma_t)   = %.3f\n', corr(DW_t(win), sigma_t(win), 'rows','complete'));
-fprintf('corr(mu_us, sigma_t)  = %.3f\n', corr(mu_us(win), sigma_t(win), 'rows','complete'));
+fprintf('corr_complete(DW_n, DW_t)      = %.3f\n', corr(DW_n(win), DW_t(win)));
+fprintf('corr_complete(DW_n, mu_us)     = %.3f\n', corr(DW_n(win), mu_us(win)));
+fprintf('corr_complete(DW_n, sigma_t)   = %.3f\n', corr(DW_n(win), sigma_t(win)));
+fprintf('corr_complete(DW_n, TED)       = %.3f\n', corr(DW_n(win), TED_s_us_t(win)));
+fprintf('corr_complete(DW_t, mu_us)     = %.3f\n', corr(DW_t(win), mu_us(win)));
+fprintf('corr_complete(DW_t, sigma_t)   = %.3f\n', corr(DW_t(win), sigma_t(win)));
+fprintf('corr_complete(mu_us, sigma_t)  = %.3f\n', corr(mu_us(win), sigma_t(win)));
 
 %% Decompose model DW = Smin - psi*Spl
 fprintf('\n--- Model DW decomposition (means in crisis) ---\n');

@@ -66,10 +66,10 @@ if exist(fp,'file')
     end
 end
 
-cc = @(a,b,m) corr(a(m), b(m), 'rows','complete');
+cc = @(a,b,m) corr_complete(a(m), b(m));
 
 fprintf('\n==== Model-implied DW_t vs FF_t correlation ====\n');
-fprintf('[X] unconditional (full sample)        = %+.3f\n', corr(DW_t, FF_t, 'rows','complete'));
+fprintf('[X] unconditional (full sample)        = %+.3f\n', corr_complete(DW_t, FF_t));
 fprintf('[Y] high-sigma regime, top quartile    = %+.3f  (n=%d, sigma>=%.3f)\n', cc(DW_t,FF_t,hi_q), sum(hi_q), thr_q);
 fprintf('    normal (bottom three quartiles)    = %+.3f  (n=%d)\n', cc(DW_t,FF_t,~hi_q), sum(~hi_q));
 if ~isempty(hi_ms)
