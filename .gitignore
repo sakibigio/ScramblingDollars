@@ -79,6 +79,8 @@ Filtering/RW_shock_muhp.csv
 !Filtering/data/iota_corridor_monthly.mat
 !Filtering/data/liq_ratio_monthly.mat
 !Filtering/data/expected_inflation_cd.mat
+!Filtering/data/initguess_nopen_lcr.mat
+!Filtering/data/initguess_cbase.mat
 
 # The promoted baseline calibration. params.m auto-loads this; without it a
 # clean clone silently falls back to the hardcoded defaults and reproduces a
