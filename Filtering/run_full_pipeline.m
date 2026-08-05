@@ -24,6 +24,15 @@
 clear; close all;
 set(groot, 'DefaultFigureVisible', 'off');   % headless-friendly; comment out to watch
 
+% Every stage below writes relative paths (temp_*.mat, RW_shock.csv) and calls
+% addpath('data'), so the whole chain assumes pwd == this folder. Anchor it to
+% the script's own location instead of the caller's cwd -- otherwise running via
+% run('/full/path/run_full_pipeline.m') from elsewhere, or with a stale current
+% folder, dies at the first save with "No such file or directory".
+this_dir = fileparts(mfilename('fullpath'));
+if ~isempty(this_dir), cd(this_dir); end    % empty when pasted into the console
+clear this_dir
+
 printit_all = 1;    % 1 = export figures/tables (Overleaf!), 0 = dry run
 save('temp_pipeline_flags.mat', 'printit_all');  % survives the clears between stages
 
