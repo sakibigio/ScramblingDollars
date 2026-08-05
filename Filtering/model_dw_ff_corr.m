@@ -5,21 +5,30 @@
 % ("scrambling-for-dollars") regime, to drop into
 %   responses/r2q3_interbank_dw_corr.tex
 %
-% Mirrors diagnose_dw.m's filter loop (same prior-optimum parameters) so the
-% numbers are consistent with the rest of the calibration diagnostics.
+% UPDATED 2026-08-03: mirrors the CURRENT baseline pipeline (main_filter.m,
+% 2026-07-31 spec) rather than the old prior-optimum hardcodes:
+%   - parameters come from functions/params.m, which auto-loads the promoted
+%     _calibration_override.mat (lambda, iota_ss, eta); varrho = 0;
+%   - mu_us enters NET of the LCR requirement (mu_minus_lcr_level), exactly
+%     as in main_filter.m (mu_minus_lcr = 1);
+%   - sigma_t inverted from the TED target via Chi_p_psi (baseline inversion).
 
 addpath('functions'); addpath('functions/chi'); addpath('data'); addpath('utils');
 matching_type = 1;
 pi_eu_ss = 1; pi_us_ss = 1;
 load('data/LFX_data.mat'); load('data/calibration.mat');
-run('functions/params.m');
+run('functions/params.m');   % applies _calibration_override.mat; sets varrho
+
+% Current baseline: filter sees the EXCESS liquidity ratio above the LCR.
+mu_us = mu_minus_lcr_level(mu_us, LCR_us);
 
 T = length(mu_us);
 
-% Prior optimum (same as diagnose_dw.m)
-lam = 1.6415; et = 0.9000; iot = 0.0838; vrh = 0.10;
-iota_us_loc = iot / freq / pi_us_ss;
+lam = lambda_us; et = eta; vrh = varrho;
+iota_us_loc = iota_us;                 % params.m: iota_ss / freq / pi_us_ss
 theta_plus  = ((exp(lam) - 1)/(exp(lam) + 1))^2;
+fprintf('Using calibration: lambda=%.4f, eta=%.4f, iota_ss=%.4f, varrho=%.4f\n', ...
+    lam, et, iota_ss, vrh);
 
 sigma_t = zeros(T,1); DW_t = zeros(T,1); FF_t = zeros(T,1);
 sig_guess = sigma_us; abs_sc = 12e4;
@@ -62,12 +71,23 @@ cc = @(a,b,m) corr(a(m), b(m), 'rows','complete');
 fprintf('\n==== Model-implied DW_t vs FF_t correlation ====\n');
 fprintf('[X] unconditional (full sample)        = %+.3f\n', corr(DW_t, FF_t, 'rows','complete'));
 fprintf('[Y] high-sigma regime, top quartile    = %+.3f  (n=%d, sigma>=%.3f)\n', cc(DW_t,FF_t,hi_q), sum(hi_q), thr_q);
+fprintf('    normal (bottom three quartiles)    = %+.3f  (n=%d)\n', cc(DW_t,FF_t,~hi_q), sum(~hi_q));
 if ~isempty(hi_ms)
     fprintf('[Y] high-sigma regime, MS prob>0.5     = %+.3f  (n=%d)\n', cc(DW_t,FF_t,hi_ms), sum(hi_ms));
+    fprintf('    normal regime,   MS prob<=0.5      = %+.3f  (n=%d)\n', cc(DW_t,FF_t,~hi_ms), sum(~hi_ms));
+else
+    fprintf('    (MS prob file absent or length mismatch: T=%d)\n', T);
 end
 
 %% Data counterpart over the same sample (for the table / sanity check)
-ok = ~(isnan(DW_n) | isnan(FF_n));
-fprintf('\n---- Data DW_n vs FF_n (same monthly sample, normalized by deposits) ----\n');
-fprintf('unconditional                          = %+.3f  (n=%d)\n', corr(DW_n(ok), FF_n(ok)), sum(ok));
-fprintf('high-sigma (top quartile of sigma_t)   = %+.3f  (n=%d)\n', cc(DW_n,FF_n,hi_q & ok), sum(hi_q & ok));
+if exist('DW_n','var') && exist('FF_n','var')
+    ok = ~(isnan(DW_n) | isnan(FF_n));
+    fprintf('\n---- Data DW_n vs FF_n (same monthly sample, normalized by deposits) ----\n');
+    fprintf('unconditional                          = %+.3f  (n=%d)\n', corr(DW_n(ok), FF_n(ok)), sum(ok));
+    fprintf('high-sigma (top quartile of sigma_t)   = %+.3f  (n=%d)\n', cc(DW_n,FF_n,hi_q & ok), sum(hi_q & ok));
+    fprintf('normal (bottom three quartiles)        = %+.3f  (n=%d)\n', cc(DW_n,FF_n,~hi_q & ok), sum(~hi_q & ok));
+    if ~isempty(hi_ms)
+        fprintf('high-sigma (MS prob>0.5)               = %+.3f  (n=%d)\n', cc(DW_n,FF_n,hi_ms & ok), sum(hi_ms & ok));
+        fprintf('normal (MS prob<=0.5)                  = %+.3f  (n=%d)\n', cc(DW_n,FF_n,~hi_ms & ok), sum(~hi_ms & ok));
+    end
+end
