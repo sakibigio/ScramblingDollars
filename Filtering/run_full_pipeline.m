@@ -35,6 +35,12 @@ if isempty(this_file)
 end
 if ~isempty(this_file)
     cd(fileparts(this_file));
+    % Also put this folder on the MATLAB path, not just in pwd. Stages call
+    % run('plotting/plot_baseline.m'), and run() cds into plotting/ for the
+    % duration -- at which point helpers living here (overleaf_dir, acf_local)
+    % stop resolving, because only pwd and the path are searched. addpath
+    % survives both the run() shifts and the clear calls between stages.
+    addpath(fileparts(this_file));
 end
 clear this_file
 

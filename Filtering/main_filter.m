@@ -31,6 +31,9 @@ delete('temp_matching_type.mat');  % Clean up temp file
 % matching_type = saved_matching_type;  % Restore after clear
 
 % Add paths
+% This folder itself, so helpers here (overleaf_dir, acf_local) still resolve
+% inside run('plotting/...'), which cds into plotting/ for the duration.
+addpath(fileparts(mfilename('fullpath')));
 addpath('functions');
 addpath('functions/chi');
 addpath('utils');

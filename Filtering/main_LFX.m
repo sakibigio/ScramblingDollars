@@ -44,6 +44,9 @@ else
     mt_suffix = '_cd';
 end
 
+% This folder itself, so helpers here (overleaf_dir, acf_local) still resolve
+% inside run('plotting/...'), which cds into plotting/ for the duration.
+addpath(fileparts(mfilename('fullpath')));
 addpath('functions');
 addpath('functions/chi');
 addpath('utils');

@@ -20,6 +20,9 @@ clear; close all;
 load('temp_matching_type.mat');
 delete('temp_matching_type.mat');
 
+% This folder itself, so helpers here (overleaf_dir, acf_local) still resolve
+% inside run('plotting/...'), which cds into plotting/ for the duration.
+addpath(fileparts(mfilename('fullpath')));
 addpath('functions');
 addpath('functions/chi');
 addpath('utils');
