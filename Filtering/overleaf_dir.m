@@ -1,17 +1,22 @@
 function foldername = overleaf_dir()
 %OVERLEAF_DIR Folder the figure and table scripts write into.
 %
+% Overleaf is the destination ONLY on a machine that already has the authors'
+% Overleaf sync folder. Everyone else -- referees, replicators, coauthors
+% without access -- gets a folder inside the repo. Nothing ever writes into a
+% Dropbox path that doesn't exist locally.
+%
 % Resolution order:
-%   1. SCRAMBLING_QUANTFIGS environment variable, if set (use this to point a
-%      fresh machine at its own Overleaf sync folder). Created if absent.
-%   2. The authors' two known machines, if that folder currently exists.
-%   3. Filtering/output/ -- created on demand. This is the branch a replicator
-%      lands on: everything still runs, output just stays inside the repo
-%      instead of writing into somebody else's Dropbox. It is also the safety
-%      net when an author's Dropbox sync path has moved.
+%   1. SCRAMBLING_QUANTFIGS environment variable, if set. Created if absent.
+%      This is the supported way to redirect output on any machine.
+%   2. $HOME/Dropbox/Apps/Overleaf/<project>/quantfigs, but only if it already
+%      exists -- true on the authors' machines, false everywhere else.
+%   3. Filtering/output/, created on demand.
 %
 % Always returns a path with a trailing filesep, since callers build paths by
 % string concatenation.
+
+OVERLEAF_REL = 'Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs';
 
 foldername = getenv('SCRAMBLING_QUANTFIGS');
 
@@ -20,18 +25,8 @@ if ~isempty(foldername)
         mkdir(foldername);
     end
 else
-    [~, username] = system('whoami');
-    username = strtrim(username);
-    switch username
-        case 'sakibigio'
-            foldername = '/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs';
-        case 'sakiclaudia'
-            foldername = '/Users/sakiclaudia/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs';
-        otherwise
-            foldername = '';
-    end
-
-    if isempty(foldername) || exist(foldername, 'dir') ~= 7
+    foldername = fullfile(getenv('HOME'), OVERLEAF_REL);
+    if exist(foldername, 'dir') ~= 7
         foldername = fullfile(fileparts(mfilename('fullpath')), 'output');
         if exist(foldername, 'dir') ~= 7
             mkdir(foldername);

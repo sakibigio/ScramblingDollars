@@ -15,7 +15,13 @@ run('run_full_pipeline.m')
 
 Set `printit_all = 0` inside the driver for a dry run: with `printit_all = 1` the figure and table scripts export figures and `.tex` tables.
 
-**Where output goes.** All MATLAB scripts resolve the destination through `Filtering/overleaf_dir.m`, in this order: the `SCRAMBLING_QUANTFIGS` environment variable if set; otherwise the two authors' Overleaf sync folders; otherwise `Filtering/output/`, created on demand. On any other machine you therefore get everything in `Filtering/output/` without touching anyone's Dropbox — set `SCRAMBLING_QUANTFIGS` to redirect. The `run_*.sh` drivers honour the same variable, plus `MATLAB_BIN` for the MATLAB executable.
+**Where output goes.** Everything resolves through `Filtering/overleaf_dir.m` (and `overleaf_dir.sh` for the shell drivers), in this order:
+
+1. `$SCRAMBLING_QUANTFIGS`, if set — the supported way to redirect output on any machine.
+2. `$HOME/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs`, **only if that folder already exists**. This is true on the authors' machines and false everywhere else.
+3. `Filtering/output/`, created on demand.
+
+So a replication run writes into `Filtering/output/` and never touches an Overleaf or Dropbox path it has no access to. The `run_*.sh` drivers also honour `MATLAB_BIN` for the MATLAB executable.
 
 ## Repository layout
 

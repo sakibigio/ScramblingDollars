@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 ETA_VALUES=(0.35 0.25)
 MATLAB="${MATLAB_BIN:-/Applications/MATLAB_R2025b.app/bin/matlab}"
 JULIA="$(which julia)"
-OVERLEAF="${SCRAMBLING_QUANTFIGS:-/Users/sakibigio/Dropbox/Apps/Overleaf/ScramblingDollarsLiquidity_NewVersion_Restud/quantfigs}"
+. ./overleaf_dir.sh            # sets $OVERLEAF (repo-local unless this machine has the sync folder)
 
 for ETA in "${ETA_VALUES[@]}"; do
     TAG="eta$(echo "$ETA" | awk '{printf "%.0f", $1*100}')"

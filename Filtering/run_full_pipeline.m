@@ -26,12 +26,32 @@ set(groot, 'DefaultFigureVisible', 'off');   % headless-friendly; comment out to
 
 % Every stage below writes relative paths (temp_*.mat, RW_shock.csv) and calls
 % addpath('data'), so the whole chain assumes pwd == this folder. Anchor it to
-% the script's own location instead of the caller's cwd -- otherwise running via
-% run('/full/path/run_full_pipeline.m') from elsewhere, or with a stale current
-% folder, dies at the first save with "No such file or directory".
-this_dir = fileparts(mfilename('fullpath'));
-if ~isempty(this_dir), cd(this_dir); end    % empty when pasted into the console
-clear this_dir
+% the script's own location instead of the caller's cwd -- otherwise running
+% with a stale or read-only current folder dies at the first save with a bare
+% "No such file or directory" that says nothing about the real cause.
+this_file = mfilename('fullpath');
+if isempty(this_file)
+    this_file = which('run_full_pipeline');   % pasted into the console
+end
+if ~isempty(this_file)
+    cd(fileparts(this_file));
+end
+clear this_file
+
+% Prove the current folder is actually writable before the pipeline commits to
+% it, and say exactly what is wrong if it is not.
+[fid, msg] = fopen('.pipeline_write_test', 'w');
+if fid < 0
+    error(['run_full_pipeline: cannot write to the current folder.\n' ...
+           '  pwd  : %s\n' ...
+           '  error: %s\n' ...
+           'Fix: cd to the Filtering folder of your clone and re-run. If the ' ...
+           'folder was moved, deleted or re-cloned while MATLAB was open, run ' ...
+           '"cd(''~'')" then "rehash toolboxcache" first.'], pwd, msg);
+end
+fclose(fid);
+delete('.pipeline_write_test');
+fprintf('run_full_pipeline: running in %s\n', pwd);
 
 printit_all = 1;    % 1 = export figures/tables (Overleaf!), 0 = dry run
 save('temp_pipeline_flags.mat', 'printit_all');  % survives the clears between stages
