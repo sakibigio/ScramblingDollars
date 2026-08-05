@@ -79,6 +79,11 @@ Filtering/RW_shock_muhp.csv
 !Filtering/data/iota_corridor_monthly.mat
 !Filtering/data/liq_ratio_monthly.mat
 !Filtering/data/expected_inflation_cd.mat
+
+# The promoted baseline calibration. params.m auto-loads this; without it a
+# clean clone silently falls back to the hardcoded defaults and reproduces a
+# different calibration than the paper's.
+!Filtering/_calibration_override.mat
 !Filtering/exchange_rate_data.mat
 !Filtering/dynare_calibration_param.mat
 !Filtering/functions/LFX_datamoments.mat
