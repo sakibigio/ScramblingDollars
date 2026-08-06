@@ -38,6 +38,7 @@ run('functions/params.m');
 ml = getenv('MU_LCR');
 if ~isempty(ml) && str2double(ml) == 1
     mu_us = mu_minus_lcr_level(mu_us, LCR_us);
+    mu_eu = mu_minus_lcr_level(mu_eu, LCR_us);  % symmetric netting (2026-08-05)
     override_suffix = '_lcr';
     fprintf('MU_LCR ON: mu_us = log(exp(mu) - LCR/100), exp(mu_us) range=[%.3f, %.3f]\n', ...
         min(exp(mu_us)), max(exp(mu_us)));

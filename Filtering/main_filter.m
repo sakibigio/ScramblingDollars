@@ -79,12 +79,15 @@ mu_hp_detrend = 0;        % 0 = raw mu (published); 1 = HP-cyclical mu
 % mu_hp_center  = 0.2;      % level at which the cyclical liquidity ratio sits
 
 % Empirical-LCR variant: net out the FEDS-Note LCR/HQLA series (column EM,
-% loaded as LCR_us in load_data.m) from the US liquidity ratio IN LEVELS, so the
+% loaded as LCR_us in load_data.m) from the liquidity ratios IN LEVELS, so the
 % filter sees the EXCESS liquidity ratio above the requirement:
-%   exp(mu_us) - LCR_us/100  (additive gap, not a ratio).
-% Done via functions/mu_minus_lcr_level.m. US only -- there is no EU LCR series,
-% so mu_eu is left untouched. Mutually exclusive with mu_hp_detrend for mu_us.
-mu_minus_lcr = 1;         % 0 = off; 1 = subtract LCR_us from mu_us in levels
+%   exp(mu) - LCR_us/100  (additive gap, not a ratio).
+% Done via functions/mu_minus_lcr_level.m. SYMMETRIC since 2026-08-05: the
+% Basel LCR binds both jurisdictions, so the same series is netted from mu_eu
+% (US HQLA share as proxy -- no digitized EU counterpart yet). The DLP and all
+% fitted objects are invariant to this choice; only the inferred sigma_eu level
+% shifts. Mutually exclusive with mu_hp_detrend.
+mu_minus_lcr = 1;         % 0 = off; 1 = subtract LCR_us from BOTH mu_us and mu_eu in levels
 
 %% Load data
 load('data/LFX_data.mat');
@@ -102,8 +105,9 @@ if mu_hp_detrend == 1
 end
 if mu_minus_lcr == 1
     mu_us = mu_minus_lcr_level(mu_us, LCR_us);
-    fprintf('mu-minus-LCR ON: exp(mu_us) excess range=[%.3f,%.3f]\n', ...
-        min(exp(mu_us)), max(exp(mu_us)));
+    mu_eu = mu_minus_lcr_level(mu_eu, LCR_us);   % symmetric netting (US series as proxy)
+    fprintf('mu-minus-LCR ON (symmetric): exp(mu_us) excess range=[%.3f,%.3f], exp(mu_eu) excess range=[%.3f,%.3f]\n', ...
+        min(exp(mu_us)), max(exp(mu_us)), min(exp(mu_eu)), max(exp(mu_eu)));
 end
 
 if plotdata == 1
@@ -248,6 +252,7 @@ if mu_hp_detrend == 1
 end
 if mu_minus_lcr == 1
     mu_us = mu_minus_lcr_level(mu_us, LCR_us);
+    mu_eu = mu_minus_lcr_level(mu_eu, LCR_us);   % symmetric netting (US series as proxy)
 end
 
 %% Optional: swap in the NEW US liquidity ratio  mu_us = log(LiqRatio H_18).
