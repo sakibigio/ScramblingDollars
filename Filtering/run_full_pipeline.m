@@ -82,6 +82,15 @@ matching_type = 1;
 lfx_printit   = printit_all;
 main_LFX
 
+%% [3b] In-sample CIP row (Table 4's in-sample line). Audit High-4 fix
+% (2026-08-06): this row's only producer was previously a manual out-of-band
+% call, so the documented driver never regenerated Mod_CIP_Moments_insample.tex.
+clear; close all;
+load('temp_pipeline_flags.mat', 'printit_all');
+if printit_all == 1
+    make_insample_cip_row
+end
+
 %% [4] Data-side moment tables
 clear; close all;
 compute_data_moments

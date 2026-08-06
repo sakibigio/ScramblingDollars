@@ -88,7 +88,15 @@ Rb_eu_ss   =Rb_eu_f(mu_us_ss);
 
 % Calibration
 load exchange_rate_data.mat ln_eu_us_ss;
-load LFX_data2.mat mu_us;
+% Steady-state anchor for the log US liquidity ratio (audit H3, 2026-08-06).
+% This is a LEVEL NORMALIZATION: -1.0878 is the sample-average log liquidity
+% ratio WITHOUT the LCR netting over the 192-month 2001-2016 window (the mean
+% of the retired LFX_data2.mat, which this line used to load). Re-anchoring at
+% the live LCR-net mean (-1.7097, 2001-2025) pushes the global Markov solve
+% into a region where fsolve does not converge from available initial guesses,
+% so the historical anchor is retained deliberately and documented in the
+% paper's calibration footnote.
+mu_us = -1.0878;   % scalar anchor; target below uses mean(mu_us) = this value
 share = 1;
 % Bond-premium calibration target (bps). Driver-settable via lfx_target_ebp
 % (preserved through main_LFX's clear); default 200 reproduces the paper.
