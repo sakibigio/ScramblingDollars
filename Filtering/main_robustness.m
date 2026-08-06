@@ -44,6 +44,7 @@ run('functions/params.m');
 % The baseline calibration is estimated on EXCESS liquidity above the LCR
 % requirement, so the robustness criterion must consume the same mu.
 mu_us = mu_minus_lcr_level(mu_us, LCR_us);
+mu_eu = mu_minus_lcr_level(mu_eu, LCR_us);   % symmetric netting (matches main_filter, 2026-08-05)
 fprintf('Robustness setup: mu-minus-LCR ON, exp(mu_us) range=[%.3f, %.3f]\n', ...
     min(exp(mu_us)), max(exp(mu_us)));
 

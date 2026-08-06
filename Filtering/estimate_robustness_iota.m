@@ -18,16 +18,26 @@
 
 fprintf('\n========================================\n');
 fprintf('Robustness exercise: grid over iota_ss\n');
-fprintf('Free param: lambda  |  eta fixed at %.4f\n', eta_baseline);
+fprintf('Free param: lambda  |  (iota, eta) move along the binding feasibility locus\n');
+fprintf('  K = (1-eta_b)*iota_b = %.4f;  eta(iota) = 1 - K/iota\n', ...
+    (1 - eta_baseline) * iota_baseline);
 fprintf('========================================\n');
 
 %% Grid
-% Feasibility floor: the inversion requires max(TED) <= (1-eta)*iota, i.e.
-% iota >= 0.0350/(1-0.632) = 0.0951 at the baseline eta -- which is exactly
-% where the estimate sits (the bound binds). The grid therefore starts at the
-% baseline and explores upward; points below the floor are infeasible by
-% construction. 11 uniform points; the first equals the baseline iota_ss.
-iota_grid = linspace(0.0951, 0.1401, 11);
+% Feasibility: the inversion requires (1-eta)*iota >= margin*max(TED), and the
+% baseline estimate sits exactly on that bound. Exploring iota at FIXED eta
+% therefore forces the baseline to the grid's left endpoint (lower iota is
+% infeasible). Instead we move (iota, eta) ALONG the binding feasibility
+% locus: eta(iota) = 1 - K/iota with K = (1-eta_baseline)*iota_baseline, so
+% the product (1-eta)*iota stays exactly at its estimated (binding) value and
+% every grid point is feasible. Only lambda is re-estimated at each point; the
+% fit profile isolates the loss from re-splitting the penalty level against
+% the bargaining power along the frontier. 11 uniform points centered at the
+% baseline: the baseline (iota, eta) is exactly the middle point (redesigned
+% 2026-08-06; the pre-promotion one-sided grid put the baseline at the edge).
+iota_grid = iota_baseline + linspace(-0.042, 0.042, 11);
+K_feas    = (1 - eta_baseline) * iota_baseline;   % binding product, annual decimal
+eta_grid  = 1 - K_feas ./ iota_grid;
 N_grid    = numel(iota_grid);
 
 %% Sample selection for moment objective
@@ -96,13 +106,15 @@ end
 
 for ii = 1:N_grid
     iota_g = iota_grid(ii);
-    fprintf('\n--- (%d/%d) iota_ss = %.4f ---\n', ii, N_grid, iota_g);
+    eta_g  = eta_grid(ii);
+    fprintf('\n--- (%d/%d) iota_ss = %.4f, eta = %.4f (frontier) ---\n', ...
+        ii, N_grid, iota_g, eta_g);
 
     % 1. Estimate lambda by fminsearch (eta fixed at baseline), using the
     %    SAME criterion as the baseline estimation (estimate_params_4d.m)
     %    restricted to lambda.  Multi-start: baseline lambda and, past the
     %    first grid point, the previous grid point's optimum.
-    obj = @(lam) obj_lambda_baseline(lam, eta_baseline, iota_g, ploss_baseline, in, tg);
+    obj = @(lam) obj_lambda_baseline(lam, eta_g, iota_g, ploss_baseline, in, tg);
     x0_list = lambda_baseline;
     if ii > 1 && isfinite(rob_iota(ii-1).lambda)
         x0_list = [lambda_baseline, rob_iota(ii-1).lambda];
@@ -118,7 +130,7 @@ for ii = 1:N_grid
     fprintf('  lambda* = %.6f   obj = %.4e   ef = %d\n', lam_opt, fval, ef);
 
     % 2. Re-run filter at the optimum, full output
-    series = run_filter_series(lam_opt, eta_baseline, iota_g, ploss_baseline, in);
+    series = run_filter_series(lam_opt, eta_g, iota_g, ploss_baseline, in);
 
     % 3. Per-pair Markov estimation via Julia
     prob_nor = [];
@@ -156,7 +168,7 @@ for ii = 1:N_grid
     % 4. Store
     rob_iota(ii).iota     = iota_g;
     rob_iota(ii).lambda   = lam_opt;
-    rob_iota(ii).eta      = eta_baseline;
+    rob_iota(ii).eta      = eta_g;
     rob_iota(ii).ploss    = ploss_baseline;
     rob_iota(ii).fval     = fval;
     rob_iota(ii).exitflag = ef;
@@ -181,18 +193,18 @@ if exist(baseline_RW_back, 'file')
 end
 
 %% Save
-save('data/robustness_iota.mat', 'rob_iota', 'iota_grid', ...
+save('data/robustness_iota.mat', 'rob_iota', 'iota_grid', 'eta_grid', 'K_feas', ...
     'lambda_baseline', 'eta_baseline', 'iota_baseline', 'ploss_baseline', ...
     'logmean_FF_d', 'logmean_DW_d', 'logmax_DW_d', '-v7.3');
 
 fprintf('\nRobustness over iota saved to data/robustness_iota.mat\n');
 
 %% ===== Summary table =====
-fprintf('\n%8s %10s %12s %12s %12s\n', 'iota', 'lambda*', 'logFFm-d', 'logDWm-d', 'logmaxDWm-d');
-fprintf('%s\n', repmat('-', 1, 60));
+fprintf('\n%8s %8s %10s %12s %12s %12s\n', 'iota', 'eta', 'lambda*', 'logFFm-d', 'logDWm-d', 'logmaxDWm-d');
+fprintf('%s\n', repmat('-', 1, 70));
 for ii = 1:N_grid
-    fprintf('%8.4f %10.4f %12.4f %12.4f %12.4f\n', ...
-        rob_iota(ii).iota, rob_iota(ii).lambda, ...
+    fprintf('%8.4f %8.4f %10.4f %12.4f %12.4f %12.4f\n', ...
+        rob_iota(ii).iota, rob_iota(ii).eta, rob_iota(ii).lambda, ...
         rob_iota(ii).logmean_FF_m - logmean_FF_d, ...
         rob_iota(ii).logmean_DW_m - logmean_DW_d, ...
         rob_iota(ii).logmax_DW_m  - logmax_DW_d);
